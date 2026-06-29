@@ -1,0 +1,992 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Driver Directory — DLX DMT</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <link rel="stylesheet" href="theme.css">
+</head>
+<body class="antialiased text-[#1a1a1a] bg-white">
+
+<div class="flex h-screen overflow-hidden">
+
+    <!-- ═══ AUTH LOADING ═══ -->
+    <div id="auth-layer" class="fixed inset-0 z-[100] bg-white flex items-center justify-center">
+        <div class="text-center">
+            <div class="inline-block animate-spin w-8 h-8 border-2 border-gray-200 border-t-black rounded-full mb-3"></div>
+            <p class="mono-font text-[11px] text-gray-400 uppercase tracking-widest">Authenticating</p>
+        </div>
+    </div>
+
+    <!-- ═══ SIDEBAR ═══ -->
+    <aside class="flex flex-col flex-shrink-0 w-20 md:w-60 bg-white border-r border-gray-200 z-30 relative shadow-[1px_0_0_rgba(0,0,0,0.05)]">
+        <a href="/index.html" class="flex items-center justify-center md:justify-start md:px-5 h-[72px] border-b border-gray-200 flex-shrink-0 bg-white hover:bg-gray-50 transition-colors">
+            <div class="w-7 h-7 bg-black text-white rounded-[4px] flex items-center justify-center font-bold text-xs">D</div>
+            <span class="ml-3 text-[15px] font-semibold hidden md:block tracking-tight display-font">DLX DMT</span>
+        </a>
+        <div class="flex-1 overflow-y-auto custom-scroll p-3 space-y-1">
+            <div class="mono-font text-[9px] font-bold text-gray-400 uppercase tracking-[0.14em] mb-2 px-2 hidden md:block pt-3">Workspace</div>
+            <a href="/index.html" class="w-full flex items-center justify-center md:justify-start p-2 rounded-md hover:bg-gray-100 text-gray-700 hover:text-black transition-colors group">
+                <i class="ph-bold ph-app-window text-[17px] opacity-75 group-hover:opacity-100"></i>
+                <span class="ml-2.5 text-[13px] font-medium hidden md:block">Dashboard</span>
+            </a>
+            <a href="/drivers.html" class="w-full flex items-center justify-center md:justify-start p-2 rounded-md bg-gray-100 text-black font-semibold transition-colors group">
+                <i class="ph-bold ph-steering-wheel text-[17px]"></i>
+                <span class="ml-2.5 text-[13px] font-medium hidden md:block">Driver Directory</span>
+            </a>
+            <a href="/directory.html" class="w-full flex items-center justify-center md:justify-start p-2 rounded-md hover:bg-gray-100 text-gray-700 hover:text-black transition-colors group">
+                <i class="ph-bold ph-address-book text-[17px] opacity-75 group-hover:opacity-100"></i>
+                <span class="ml-2.5 text-[13px] font-medium hidden md:block">Contacts</span>
+            </a>
+        </div>
+        <div class="p-3.5 border-t border-gray-200 flex items-center justify-center md:justify-between bg-white">
+            <div class="flex items-center overflow-hidden">
+                <div class="h-8 w-8 flex-shrink-0 rounded-md bg-black flex items-center justify-center text-white font-semibold text-[11px] display-font" id="user-avatar">?</div>
+                <div class="hidden md:flex flex-col ml-2.5 min-w-0">
+                    <span id="logged-user-name" class="text-[12px] font-semibold text-black truncate w-[100px] leading-tight">Guest</span>
+                    <span id="user-role" class="mono-font text-[9px] uppercase tracking-[0.14em] text-gray-400 mt-0.5">—</span>
+                </div>
+            </div>
+            <button onclick="logout()" class="text-gray-400 hover:text-black ml-2 flex-shrink-0 transition-colors" title="Logout"><i class="ph-bold ph-sign-out text-lg"></i></button>
+        </div>
+    </aside>
+
+    <!-- ═══ MAIN ═══ -->
+    <main class="flex-1 flex flex-col h-full overflow-hidden bg-[#faf9f8] relative z-10">
+
+        <!-- Top bar -->
+        <div class="flex items-center gap-4 px-8 py-3.5 border-b border-gray-200 bg-[#faf9f8] sticky top-0 z-10 flex-shrink-0">
+            <div class="mono-font text-[10px] tracking-[0.14em] uppercase text-gray-400 flex items-center gap-2">
+                <span>Hub</span><span class="text-gray-300">/</span><span class="text-black font-semibold">Driver Directory</span>
+            </div>
+            <div class="flex-1"></div>
+            <div class="relative w-64 hidden sm:block">
+                <i class="ph ph-magnifying-glass absolute left-3 top-2 text-gray-400 text-sm"></i>
+                <input type="text" id="search-input" oninput="renderDrivers()" placeholder="Search drivers…"
+                    class="w-full bg-white border border-gray-200 text-black text-[13px] rounded-md pl-8 pr-3 py-1.5 focus:border-black focus:ring-0 shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
+            </div>
+            <button id="add-driver-btn" onclick="openDriverModal()" class="hidden bg-black hover:bg-[#222] text-white text-xs font-semibold px-3 py-1.5 rounded-md items-center gap-1.5 transition-colors">
+                <i class="ph-bold ph-plus"></i><span>Add Driver</span>
+            </button>
+        </div>
+
+        <div class="flex-1 overflow-y-auto p-6 sm:p-10 custom-scroll">
+
+            <!-- Header -->
+            <header class="flex flex-col sm:flex-row sm:items-end justify-between mb-8 pb-5 border-b border-gray-200">
+                <div class="flex flex-col gap-1.5">
+                    <div class="mono-font text-[10px] tracking-[0.14em] uppercase text-gray-500">Operations · Driver roster</div>
+                    <h1 class="display-font text-[36px] font-semibold text-black tracking-tight leading-none">Drivers.</h1>
+                    <div class="flex items-center gap-3 mono-font text-[10px] tracking-[0.12em] uppercase text-gray-400 mt-2">
+                        <span id="driver-count-meta">0 drivers</span>
+                        <span class="text-gray-300">·</span>
+                        <span id="driver-stats-meta">—</span>
+                    </div>
+                </div>
+                <div class="mt-4 sm:mt-0 flex items-center gap-2 flex-wrap">
+                    <!-- Status filter -->
+                    <select id="status-filter" onchange="renderDrivers()" class="bg-white border border-gray-200 rounded-md px-3 py-1.5 text-[11px] mono-font uppercase tracking-widest focus:border-black focus:ring-0">
+                        <option value="">All statuses</option>
+                        <option value="active">Active</option>
+                        <option value="probation">Probation</option>
+                        <option value="inactive">Inactive</option>
+                        <option value="terminated">Terminated</option>
+                    </select>
+                    <!-- Sort -->
+                    <select id="sort-select" onchange="renderDrivers()" class="bg-white border border-gray-200 rounded-md px-3 py-1.5 text-[11px] mono-font uppercase tracking-widest focus:border-black focus:ring-0">
+                        <option value="name">Sort: Name</option>
+                        <option value="id">Sort: Driver ID</option>
+                        <option value="onboarding">Sort: Onboarding</option>
+                        <option value="license_expiry">Sort: License Expiry</option>
+                        <option value="hire_date">Sort: Hire Date</option>
+                    </select>
+                    <!-- View toggle -->
+                    <div class="flex items-center bg-white border border-gray-200 rounded-md overflow-hidden">
+                        <button id="view-table-btn" onclick="setView('table')" class="px-3 py-1.5 text-[10px] mono-font uppercase tracking-widest font-bold bg-black text-white transition-colors" title="Table view"><i class="ph-bold ph-list-dashes"></i></button>
+                        <button id="view-card-btn" onclick="setView('card')" class="px-3 py-1.5 text-[10px] mono-font uppercase tracking-widest font-bold text-gray-500 hover:bg-gray-50 transition-colors" title="Card view"><i class="ph-bold ph-squares-four"></i></button>
+                    </div>
+                    <button onclick="openGroupModal()" class="bg-white border border-gray-200 hover:bg-gray-50 text-[11px] mono-font uppercase tracking-widest font-bold text-gray-600 px-3 py-1.5 rounded-md transition-colors flex items-center gap-1.5">
+                        <i class="ph-bold ph-tag"></i><span class="hidden sm:inline">Groups</span>
+                    </button>
+                </div>
+            </header>
+
+            <!-- Group filter tabs -->
+            <div class="flex items-center gap-2 mb-5 overflow-x-auto pb-1 flex-shrink-0" id="group-tabs"></div>
+
+            <!-- Loading -->
+            <div id="drivers-loading" class="bg-white border border-gray-200 rounded-lg p-16 text-center shadow-[0_1px_3px_rgba(0,0,0,0.02)]">
+                <div class="inline-block animate-spin w-6 h-6 border-2 border-gray-300 border-t-black rounded-full mb-3"></div>
+                <p class="text-sm text-gray-500">Loading drivers…</p>
+            </div>
+
+            <!-- TABLE VIEW -->
+            <div id="view-table" class="hidden bg-white border border-gray-200 rounded-lg overflow-hidden shadow-[0_1px_3px_rgba(0,0,0,0.02)]">
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left min-w-[900px]">
+                        <thead>
+                            <tr class="bg-gray-50/50 border-b border-gray-200 mono-font text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                                <th class="px-5 py-2.5 w-10"></th>
+                                <th class="px-4 py-2.5">Driver</th>
+                                <th class="px-4 py-2.5">ID</th>
+                                <th class="px-4 py-2.5">Phone</th>
+                                <th class="px-4 py-2.5">Onboarding</th>
+                                <th class="px-4 py-2.5">Docs</th>
+                                <th class="px-4 py-2.5">License</th>
+                                <th class="px-4 py-2.5">Expiry</th>
+                                <th class="px-4 py-2.5">Status</th>
+                                <th class="px-4 py-2.5">Groups</th>
+                            </tr>
+                        </thead>
+                        <tbody id="drivers-tbody" class="text-[13px]"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- CARD VIEW -->
+            <div id="view-card" class="hidden grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4" id="drivers-cards"></div>
+
+            <!-- Empty state -->
+            <div id="drivers-empty" class="hidden bg-white border border-gray-200 rounded-lg p-16 text-center shadow-[0_1px_3px_rgba(0,0,0,0.02)]">
+                <div class="bg-gray-50 p-4 rounded-lg border border-gray-200 inline-block mb-3">
+                    <i class="ph-bold ph-steering-wheel text-2xl text-gray-400"></i>
+                </div>
+                <p class="text-sm font-semibold text-black">No drivers found</p>
+                <p class="text-xs text-gray-500 mt-1">Try adjusting your search or filters, or add a new driver.</p>
+            </div>
+
+        </div>
+    </main>
+</div>
+
+<!-- ═══════════════ DRIVER MODAL ═══════════════ -->
+<div id="driver-modal" class="fixed inset-0 z-[150] hidden modal-backdrop flex items-center justify-center p-4" onclick="if(event.target===this)closeDriverModal()">
+    <div class="bg-white w-full max-w-[620px] rounded-[10px] border border-black shadow-2xl slide-in max-h-[92vh] overflow-y-auto">
+        <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200 sticky top-0 bg-white z-10 rounded-t-[10px]">
+            <div>
+                <div class="mono-font text-[10px] tracking-[0.14em] uppercase text-gray-500 mb-1">§ <span id="dm-sub">New Driver</span></div>
+                <h2 id="dm-title" class="display-font text-lg font-semibold text-black leading-none">Add driver</h2>
+            </div>
+            <button onclick="closeDriverModal()" class="text-gray-400 hover:text-black transition-colors"><i class="ph-bold ph-x text-lg"></i></button>
+        </div>
+
+        <div class="px-6 py-5">
+            <!-- Tabs inside modal -->
+            <div class="flex gap-0 border-b border-gray-200 mb-6">
+                <button onclick="switchDriverTab('info')" id="dtab-info" class="driver-tab px-4 py-2 text-[11px] font-semibold mono-font uppercase tracking-widest border-b-2 border-black text-black -mb-px">Info</button>
+                <button onclick="switchDriverTab('onboarding')" id="dtab-onboarding" class="driver-tab px-4 py-2 text-[11px] font-semibold mono-font uppercase tracking-widest border-b-2 border-transparent text-gray-400 -mb-px hover:text-gray-700">Onboarding</button>
+                <button onclick="switchDriverTab('license')" id="dtab-license" class="driver-tab px-4 py-2 text-[11px] font-semibold mono-font uppercase tracking-widest border-b-2 border-transparent text-gray-400 -mb-px hover:text-gray-700">License</button>
+                <button onclick="switchDriverTab('docs')" id="dtab-docs" class="driver-tab px-4 py-2 text-[11px] font-semibold mono-font uppercase tracking-widest border-b-2 border-transparent text-gray-400 -mb-px hover:text-gray-700 flex items-center gap-1.5">Docs <span id="dtab-docs-badge" class="hidden bg-red-500 text-white text-[9px] font-bold rounded-full px-1.5 py-0.5 leading-none"></span></button>
+            </div>
+
+            <!-- INFO TAB -->
+            <div id="dm-tab-info">
+                <div class="grid grid-cols-2 gap-4 mb-4">
+                    <div>
+                        <label class="block mono-font text-[10px] tracking-widest text-gray-500 uppercase mb-1.5">First Name</label>
+                        <input type="text" id="dm-first" class="w-full border border-gray-300 rounded-md p-2.5 text-[13px] focus:border-black focus:ring-0" placeholder="John">
+                    </div>
+                    <div>
+                        <label class="block mono-font text-[10px] tracking-widest text-gray-500 uppercase mb-1.5">Last Name</label>
+                        <input type="text" id="dm-last" class="w-full border border-gray-300 rounded-md p-2.5 text-[13px] focus:border-black focus:ring-0" placeholder="Doe">
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-4 mb-4">
+                    <div>
+                        <label class="block mono-font text-[10px] tracking-widests text-gray-500 uppercase mb-1.5">Driver ID</label>
+                        <input type="text" id="dm-driver-id" class="w-full border border-gray-300 rounded-md p-2.5 text-[13px] mono-font focus:border-black focus:ring-0" placeholder="e.g. 541">
+                    </div>
+                    <div>
+                        <label class="block mono-font text-[10px] tracking-widests text-gray-500 uppercase mb-1.5">Phone</label>
+                        <input type="tel" id="dm-phone" class="w-full border border-gray-300 rounded-md p-2.5 text-[13px] focus:border-black focus:ring-0" placeholder="(541) 555-1234">
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-4 mb-4">
+                    <div>
+                        <label class="block mono-font text-[10px] tracking-widests text-gray-500 uppercase mb-1.5">Email</label>
+                        <input type="email" id="dm-email" class="w-full border border-gray-300 rounded-md p-2.5 text-[13px] focus:border-black focus:ring-0" placeholder="driver@example.com">
+                    </div>
+                    <div>
+                        <label class="block mono-font text-[10px] tracking-widests text-gray-500 uppercase mb-1.5">Vehicle Ref</label>
+                        <input type="text" id="dm-vehicle" class="w-full border border-gray-300 rounded-md p-2.5 text-[13px] mono-font focus:border-black focus:ring-0" placeholder="e.g. V-201">
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-4 mb-4">
+                    <div>
+                        <label class="block mono-font text-[10px] tracking-widests text-gray-500 uppercase mb-1.5">Hire Date</label>
+                        <input type="date" id="dm-hire-date" class="w-full border border-gray-300 rounded-md p-2.5 text-[13px] focus:border-black focus:ring-0">
+                    </div>
+                    <div>
+                        <label class="block mono-font text-[10px] tracking-widests text-gray-500 uppercase mb-1.5">Status</label>
+                        <select id="dm-status" class="w-full border border-gray-300 rounded-md p-2.5 text-[13px] focus:border-black focus:ring-0 bg-white">
+                            <option value="active">Active</option>
+                            <option value="probation">Probation</option>
+                            <option value="inactive">Inactive</option>
+                            <option value="terminated">Terminated</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="mb-4">
+                    <label class="block mono-font text-[10px] tracking-widests text-gray-500 uppercase mb-1.5">Vehicle Owner</label>
+                    <select id="dm-owner-id" class="w-full border border-gray-300 rounded-md p-2.5 text-[13px] focus:border-black focus:ring-0 bg-white">
+                        <option value="">— No owner assigned —</option>
+                    </select>
+                </div>
+                <div class="mb-4">
+                    <label class="block mono-font text-[10px] tracking-widests text-gray-500 uppercase mb-1.5">Groups</label>
+                    <div id="dm-groups-checkboxes" class="flex flex-wrap gap-3 p-3 border border-gray-200 rounded-md min-h-[44px]">
+                        <span class="text-[12px] text-gray-400 italic">Loading groups…</span>
+                    </div>
+                </div>
+                <div>
+                    <label class="block mono-font text-[10px] tracking-widests text-gray-500 uppercase mb-1.5">Notes</label>
+                    <textarea id="dm-notes" rows="3" class="w-full border border-gray-300 rounded-md p-2.5 text-[13px] focus:border-black focus:ring-0" placeholder="Additional notes…"></textarea>
+                </div>
+            </div>
+
+            <!-- ONBOARDING TAB -->
+            <div id="dm-tab-onboarding" class="hidden">
+                <div class="mb-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-[13px] font-semibold text-black">Onboarding progress</span>
+                        <span id="dm-ob-pct" class="mono-font text-[12px] font-bold text-black">0%</span>
+                    </div>
+                    <div class="w-full bg-gray-200 rounded-full h-2">
+                        <div id="dm-ob-bar" class="bg-black h-2 rounded-full progress-bar" style="width:0%"></div>
+                    </div>
+                </div>
+                <div class="space-y-2" id="dm-steps-list"></div>
+            </div>
+
+            <!-- LICENSE TAB -->
+            <div id="dm-tab-license" class="hidden">
+                <div class="grid grid-cols-2 gap-4 mb-4">
+                    <div>
+                        <label class="block mono-font text-[10px] tracking-widests text-gray-500 uppercase mb-1.5">License Number</label>
+                        <input type="text" id="dm-license-num" class="w-full border border-gray-300 rounded-md p-2.5 text-[13px] mono-font uppercase focus:border-black focus:ring-0" placeholder="e.g. OR1234567">
+                    </div>
+                    <div>
+                        <label class="block mono-font text-[10px] tracking-widests text-gray-500 uppercase mb-1.5">License Expiry</label>
+                        <input type="date" id="dm-license-expiry" class="w-full border border-gray-300 rounded-md p-2.5 text-[13px] focus:border-black focus:ring-0">
+                    </div>
+                </div>
+                <div id="dm-license-status-banner" class="hidden p-3 rounded-lg border text-[13px] font-medium flex items-center gap-2 mb-4"></div>
+                <!-- PPV -->
+                <div class="border-t border-gray-100 pt-4 mb-4">
+                    <div class="mono-font text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3">PPV Permit</div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block mono-font text-[10px] tracking-widests text-gray-500 uppercase mb-1.5">PPV Number</label>
+                            <input type="text" id="dm-ppv-number" class="w-full border border-gray-300 rounded-md p-2.5 text-[13px] mono-font uppercase focus:border-black focus:ring-0" placeholder="e.g. PPV-00123">
+                        </div>
+                        <div>
+                            <label class="block mono-font text-[10px] tracking-widests text-gray-500 uppercase mb-1.5">PPV Expiry</label>
+                            <input type="date" id="dm-ppv-expiry" class="w-full border border-gray-300 rounded-md p-2.5 text-[13px] focus:border-black focus:ring-0" onchange="updatePpvBanner()">
+                        </div>
+                    </div>
+                    <div id="dm-ppv-banner" class="hidden mt-3 p-3 rounded-lg border text-[13px] font-medium flex items-center gap-2"></div>
+                </div>
+                <div class="bg-gray-50 rounded-lg border border-gray-200 p-4">
+                    <div class="mono-font text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3">Reminders</div>
+                    <ul class="text-[13px] text-gray-600 space-y-1.5">
+                        <li class="flex items-center gap-2"><i class="ph-bold ph-calendar-check text-gray-400"></i> Licenses expiring within 60 days are flagged yellow</li>
+                        <li class="flex items-center gap-2"><i class="ph-bold ph-warning text-gray-400"></i> Expired licenses show red and appear at top of list when sorted by expiry</li>
+                        <li class="flex items-center gap-2"><i class="ph-bold ph-shield-check text-gray-400"></i> PPV permits must remain valid to operate — renew 30 days before expiry</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- DOCS TAB -->
+            <div id="dm-tab-docs" class="hidden">
+                <div class="mb-4 flex items-center justify-between">
+                    <p class="text-[13px] text-gray-500">Required documents assigned to this driver. Check the hub document library to assign or remove requirements.</p>
+                </div>
+                <div id="dm-docs-loading" class="py-8 text-center">
+                    <div class="inline-block animate-spin w-5 h-5 border-2 border-gray-200 border-t-black rounded-full"></div>
+                </div>
+                <div id="dm-docs-list" class="hidden space-y-2"></div>
+                <div id="dm-docs-empty" class="hidden p-8 text-center bg-gray-50 rounded-lg border border-gray-200">
+                    <i class="ph-bold ph-check-circle text-2xl text-emerald-500 mb-2"></i>
+                    <p class="text-[13px] text-gray-500">No required documents assigned to this driver.</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="flex items-center justify-between px-6 py-4 border-t border-gray-100 bg-gray-50/50 rounded-b-[10px] sticky bottom-0">
+            <button id="dm-delete-btn" onclick="deleteDriver()" class="hidden mono-font text-[10px] tracking-widest uppercase font-bold text-red-500 hover:text-red-700 transition-colors">Delete Driver</button>
+            <div class="ml-auto flex gap-2">
+                <button onclick="closeDriverModal()" class="bg-white border border-gray-200 hover:bg-gray-50 text-black text-[13px] font-semibold px-4 py-2 rounded-md">Cancel</button>
+                <button onclick="saveDriver()" class="bg-black hover:bg-[#222] text-white text-[13px] font-semibold px-4 py-2 rounded-md">Save driver</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ═══════════════ GROUP MANAGEMENT MODAL ═══════════════ -->
+<div id="group-modal" class="fixed inset-0 z-[150] hidden modal-backdrop flex items-center justify-center p-4" onclick="if(event.target===this)closeGroupModal()">
+    <div class="bg-white w-full max-w-[420px] rounded-[10px] border border-black shadow-2xl slide-in max-h-[80vh] overflow-y-auto">
+        <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200">
+            <div>
+                <div class="mono-font text-[10px] tracking-[0.14em] uppercase text-gray-500 mb-1">§ Management</div>
+                <h2 class="display-font text-lg font-semibold text-black leading-none">Driver Groups</h2>
+            </div>
+            <button onclick="closeGroupModal()" class="text-gray-400 hover:text-black"><i class="ph-bold ph-x text-lg"></i></button>
+        </div>
+        <div class="px-6 py-5">
+            <div class="flex gap-2 mb-5">
+                <input type="text" id="new-group-name" placeholder="Group name…" class="flex-1 border border-gray-300 rounded-md p-2.5 text-[13px] focus:border-black focus:ring-0">
+                <input type="color" id="new-group-color" value="#111111" class="w-12 h-10 border border-gray-300 rounded-md cursor-pointer p-1">
+                <button onclick="addGroup()" class="bg-black hover:bg-[#222] text-white text-[13px] font-semibold px-4 py-2 rounded-md">Add</button>
+            </div>
+            <div id="groups-list" class="divide-y divide-gray-100"></div>
+        </div>
+    </div>
+</div>
+
+<script type="module">
+    import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
+
+    const SUPABASE_URL  = 'https://ioofrqvykvgshqybzjiu.supabase.co';
+    const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imlvb2ZycXZ5a3Znc2hxeWJ6aml1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ5NjcxNzcsImV4cCI6MjA5MDU0MzE3N30.E3Kd88OXGGIc6GRmaVJaJwTilLuPksqyYPYSBEyECUQ';
+    const supabase = createClient(SUPABASE_URL, SUPABASE_ANON);
+
+    let currentUser = null;
+    let drivers = [];
+    let groups  = [];
+    let activeGroup  = null;
+    let editingId    = null;
+    let currentView  = 'table';
+    let activeDriverTab = 'info';
+    // document requirement tracking per driver
+    // pendingDocsByDriver[driverRowId] = count of pending required docs
+    let pendingDocsByDriver = {};
+
+    // onboarding step definitions
+    const OB_STEPS = [
+        { key: 'i9_w4',                label: 'I-9 / W-4 completed',          icon: 'ph-file-text' },
+        { key: 'background_check',     label: 'Background check cleared',      icon: 'ph-shield-check' },
+        { key: 'drug_screening',       label: 'Drug screening passed',         icon: 'ph-test-tube' },
+        { key: 'license_verified',     label: "Driver's license verified",     icon: 'ph-identification-card' },
+        { key: 'dot_physical',         label: 'DOT physical completed',        icon: 'ph-heartbeat' },
+        { key: 'defensive_driving',    label: 'Defensive driving course',      icon: 'ph-car' },
+        { key: 'vehicle_orientation',  label: 'Vehicle orientation done',      icon: 'ph-van' },
+        { key: 'pass_certification',   label: 'PASS certification',            icon: 'ph-certificate' },
+        { key: 'wheelchair_securement',label: 'Wheelchair securement training',icon: 'ph-wheelchair' },
+        { key: 'radio_setup',          label: 'Radio / phone setup',           icon: 'ph-broadcast' },
+    ];
+
+    const STATUS_STYLES = {
+        active:     'bg-emerald-50 text-emerald-700',
+        probation:  'bg-amber-50 text-amber-700',
+        inactive:   'bg-gray-100 text-gray-500',
+        terminated: 'bg-red-50 text-red-600',
+    };
+
+    // ── AUTH ────────────────────────────────────────────────────────────────
+    async function checkSession() {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) { window.location.href = '/index.html'; return; }
+        const { data: profile } = await supabase.from('profiles').select('full_name, role').eq('id', session.user.id).maybeSingle();
+        currentUser = { id: session.user.id, email: session.user.email, name: profile?.full_name || session.user.email.split('@')[0], role: profile?.role || 'employee' };
+        initUI();
+        await loadData();
+    }
+    checkSession();
+
+    window.logout = async function() { await supabase.auth.signOut(); window.location.href = '/index.html'; };
+
+    function initUI() {
+        document.getElementById('auth-layer').classList.add('hidden');
+        const parts = currentUser.name.split(' ');
+        const formatted = parts.map(p => p.charAt(0).toUpperCase() + p.slice(1)).join(' ');
+        document.getElementById('logged-user-name').textContent = formatted;
+        document.getElementById('user-role').textContent = currentUser.role.toUpperCase();
+        const initials = parts.length > 1 ? (parts[0][0] + parts[1][0]).toUpperCase() : formatted.substring(0,2).toUpperCase();
+        document.getElementById('user-avatar').textContent = initials;
+
+        const canEdit = ['admin','jay','dispatcher','management'].includes(currentUser.role);
+        if (canEdit) {
+            document.getElementById('add-driver-btn').classList.remove('hidden');
+            document.getElementById('add-driver-btn').classList.add('flex');
+        }
+    }
+
+    // ── DATA ─────────────────────────────────────────────────────────────────
+    let vehicleOwners = [];
+
+    async function loadData() {
+        await Promise.all([loadGroups(), loadDrivers(), loadVehicleOwners()]);
+        await loadDocRequirements();
+        document.getElementById('drivers-loading').classList.add('hidden');
+        renderGroupTabs();
+        renderDrivers();
+        updateStats();
+    }
+
+    async function loadGroups() {
+        const { data } = await supabase.from('driver_groups').select('*').order('name');
+        groups = data || [];
+    }
+
+    async function loadVehicleOwners() {
+        const { data } = await supabase.from('vehicle_owners').select('id, owner_name, company_name').order('owner_name');
+        vehicleOwners = data || [];
+        const sel = document.getElementById('dm-owner-id');
+        if (!sel) return;
+        const existing = sel.innerHTML;
+        sel.innerHTML = '<option value="">— No owner assigned —</option>' +
+            vehicleOwners.map(o => `<option value="${o.id}">${o.owner_name}${o.company_name ? ` (${o.company_name})` : ''}</option>`).join('');
+    }
+
+    async function loadDrivers() {
+        const { data } = await supabase.from('drivers').select('*, driver_group_members(group_id)').order('last_name, first_name');
+        drivers = data || [];
+    }
+
+    async function loadDocRequirements() {
+        // Load all requirements and all completions in parallel
+        const [{ data: reqs }, { data: completions }] = await Promise.all([
+            supabase.from('document_requirements').select('document_id, driver_id'),
+            supabase.from('document_completions').select('document_id, driver_record_id'),
+        ]);
+
+        pendingDocsByDriver = {};
+        if (!reqs || reqs.length === 0) return;
+
+        const allDriversReqDocIds = new Set(
+            (reqs).filter(r => r.driver_id === null).map(r => r.document_id)
+        );
+
+        drivers.forEach(d => {
+            // docs required specifically for this driver
+            const specificDocIds = new Set(
+                (reqs).filter(r => r.driver_id === d.id).map(r => r.document_id)
+            );
+            const allRequired = new Set([...allDriversReqDocIds, ...specificDocIds]);
+            if (allRequired.size === 0) { pendingDocsByDriver[d.id] = 0; return; }
+
+            // completions for this driver
+            const doneDocIds = new Set(
+                (completions || []).filter(c => c.driver_record_id === d.id).map(c => c.document_id)
+            );
+
+            const pending = [...allRequired].filter(docId => !doneDocIds.has(docId)).length;
+            pendingDocsByDriver[d.id] = pending;
+        });
+    }
+
+    function updateStats() {
+        const active = drivers.filter(d => d.status === 'active').length;
+        const expiringSoon = drivers.filter(d => licenseState(d.license_expiry) === 'warn').length;
+        const expired = drivers.filter(d => licenseState(d.license_expiry) === 'expired').length;
+        let meta = `${active} active`;
+        if (expiringSoon) meta += ` · <span class="text-amber-600">${expiringSoon} expiring soon</span>`;
+        if (expired) meta += ` · <span class="text-red-600">${expired} expired</span>`;
+        document.getElementById('driver-stats-meta').innerHTML = meta;
+    }
+
+    // ── RENDER ────────────────────────────────────────────────────────────────
+    window.renderDrivers = function() {
+        const query = (document.getElementById('search-input').value || '').toLowerCase();
+        const statusFilter = document.getElementById('status-filter').value;
+        const sortBy = document.getElementById('sort-select').value;
+
+        let list = drivers.filter(d => {
+            if (activeGroup && !d.driver_group_members?.some(m => m.group_id === activeGroup)) return false;
+            if (statusFilter && d.status !== statusFilter) return false;
+            if (query) {
+                const hay = `${d.first_name} ${d.last_name} ${d.driver_id || ''} ${d.phone || ''} ${d.license_number || ''}`.toLowerCase();
+                if (!hay.includes(query)) return false;
+            }
+            return true;
+        });
+
+        list.sort((a, b) => {
+            if (sortBy === 'name') return `${a.last_name}${a.first_name}`.localeCompare(`${b.last_name}${b.first_name}`);
+            if (sortBy === 'id') return (a.driver_id || '').localeCompare(b.driver_id || '');
+            if (sortBy === 'onboarding') return obPct(b.onboarding) - obPct(a.onboarding);
+            if (sortBy === 'license_expiry') return (a.license_expiry || '9999') < (b.license_expiry || '9999') ? -1 : 1;
+            if (sortBy === 'hire_date') return (b.hire_date || '') > (a.hire_date || '') ? 1 : -1;
+            return 0;
+        });
+
+        document.getElementById('driver-count-meta').textContent = `${list.length} driver${list.length !== 1 ? 's' : ''}`;
+
+        const empty = document.getElementById('drivers-empty');
+        const tableEl = document.getElementById('view-table');
+        const cardEl = document.getElementById('view-card');
+
+        if (list.length === 0) {
+            empty.classList.remove('hidden');
+            tableEl.classList.add('hidden');
+            cardEl.classList.add('hidden');
+            return;
+        }
+        empty.classList.add('hidden');
+
+        if (currentView === 'table') {
+            tableEl.classList.remove('hidden');
+            cardEl.classList.add('hidden');
+            renderTable(list);
+        } else {
+            cardEl.classList.remove('hidden');
+            tableEl.classList.add('hidden');
+            renderCards(list);
+        }
+    };
+
+    function renderTable(list) {
+        const tbody = document.getElementById('drivers-tbody');
+        tbody.innerHTML = list.map(d => {
+            const name = `${d.first_name} ${d.last_name}`.trim();
+            const initials = ((d.first_name?.[0] || '') + (d.last_name?.[0] || '')).toUpperCase() || '?';
+            const pct = obPct(d.onboarding);
+            const barColor = pct === 100 ? 'bg-emerald-500' : pct >= 50 ? 'bg-amber-400' : 'bg-gray-300';
+            const ls = licenseState(d.license_expiry);
+            const licenseColor = ls === 'expired' ? 'text-red-600 font-semibold' : ls === 'warn' ? 'text-amber-600 font-semibold' : 'text-gray-600';
+            const expiryBadge = ls === 'expired' ? '<i class="ph-fill ph-warning text-red-500 ml-1"></i>' : ls === 'warn' ? '<i class="ph-fill ph-warning text-amber-400 ml-1"></i>' : '';
+            const memberGroups = (d.driver_group_members || []).map(m => groups.find(g => g.id === m.group_id)).filter(Boolean);
+            const groupBadges = memberGroups.map(g => `<span class="inline-flex items-center gap-1 mono-font text-[9px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider" style="background:${g.color}22;color:${g.color}">${g.name}</span>`).join(' ');
+            const statusClass = STATUS_STYLES[d.status] || 'bg-gray-100 text-gray-500';
+            const pendingDocs = pendingDocsByDriver[d.id] || 0;
+            const docsBadge = pendingDocs > 0
+                ? `<span class="inline-flex items-center gap-1 mono-font text-[9px] font-bold px-2 py-1 rounded-full bg-red-50 text-red-600"><i class="ph-fill ph-warning-circle text-[10px]"></i>${pendingDocs} pending</span>`
+                : `<span class="mono-font text-[9px] text-gray-300">—</span>`;
+
+            return `<tr class="driver-row border-b border-gray-100 transition-colors" onclick="openDriverModal('${d.id}')">
+                <td class="px-5 py-3.5">
+                    <div class="w-8 h-8 rounded-md bg-gray-100 flex items-center justify-center text-[11px] font-bold text-gray-600">${initials}</div>
+                </td>
+                <td class="px-4 py-3.5">
+                    <div class="font-semibold text-black">${name}</div>
+                    ${d.hire_date ? `<div class="mono-font text-[10px] text-gray-400">Hired ${fmtDate(d.hire_date)}</div>` : ''}
+                </td>
+                <td class="px-4 py-3.5 mono-font text-[12px] font-semibold text-gray-700">${d.driver_id ? `#${d.driver_id}` : '—'}</td>
+                <td class="px-4 py-3.5 text-gray-600 text-[13px] whitespace-nowrap">${d.phone || '<span class="text-gray-300">—</span>'}</td>
+                <td class="px-4 py-3.5" style="min-width:130px">
+                    <div class="flex items-center gap-2">
+                        <div class="flex-1 bg-gray-100 rounded-full h-1.5 min-w-[60px]">
+                            <div class="${barColor} h-1.5 rounded-full progress-bar" style="width:${pct}%"></div>
+                        </div>
+                        <span class="mono-font text-[10px] font-bold text-gray-500 w-8 text-right">${pct}%</span>
+                    </div>
+                </td>
+                <td class="px-4 py-3.5">${docsBadge}</td>
+                <td class="px-4 py-3.5 mono-font text-[12px] ${licenseColor}">${d.license_number || '<span class="text-gray-300 font-normal">—</span>'}</td>
+                <td class="px-4 py-3.5">
+                    <span class="mono-font text-[11px] ${licenseColor} flex items-center whitespace-nowrap">${d.license_expiry ? fmtDate(d.license_expiry) : '<span class="text-gray-300 font-normal">—</span>'}${expiryBadge}</span>
+                </td>
+                <td class="px-4 py-3.5">
+                    <span class="mono-font text-[9px] font-bold uppercase tracking-wider px-2 py-1 rounded-full ${statusClass}">${d.status}</span>
+                </td>
+                <td class="px-4 py-3.5 max-w-[140px]">
+                    <div class="flex flex-wrap gap-1">${groupBadges || '<span class="text-gray-300 text-xs">—</span>'}</div>
+                </td>
+            </tr>`;
+        }).join('');
+    }
+
+    function renderCards(list) {
+        const container = document.getElementById('view-card');
+        container.innerHTML = list.map(d => {
+            const name = `${d.first_name} ${d.last_name}`.trim();
+            const initials = ((d.first_name?.[0] || '') + (d.last_name?.[0] || '')).toUpperCase() || '?';
+            const pct = obPct(d.onboarding);
+            const barColor = pct === 100 ? 'bg-emerald-500' : pct >= 50 ? 'bg-amber-400' : 'bg-gray-300';
+            const ls = licenseState(d.license_expiry);
+            const licenseColor = ls === 'expired' ? 'text-red-600' : ls === 'warn' ? 'text-amber-600' : 'text-gray-600';
+            const statusClass = STATUS_STYLES[d.status] || 'bg-gray-100 text-gray-500';
+            const memberGroups = (d.driver_group_members || []).map(m => groups.find(g => g.id === m.group_id)).filter(Boolean);
+
+            return `<div class="bg-white border border-gray-200 rounded-lg p-5 hover:shadow-md transition-all cursor-pointer group" onclick="openDriverModal('${d.id}')">
+                <div class="flex items-start justify-between mb-4">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-md bg-black flex items-center justify-center text-white font-bold text-[13px]">${initials}</div>
+                        <div>
+                            <div class="font-semibold text-[14px] text-black leading-tight">${name}</div>
+                            <div class="mono-font text-[10px] text-gray-400">${d.driver_id ? `#${d.driver_id}` : 'No ID'}</div>
+                        </div>
+                    </div>
+                    <span class="mono-font text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${statusClass}">${d.status}</span>
+                </div>
+                ${d.phone ? `<div class="flex items-center gap-2 mb-2 text-[12px] text-gray-600"><i class="ph-bold ph-phone text-gray-400"></i>${d.phone}</div>` : ''}
+                <div class="mb-3">
+                    <div class="flex items-center justify-between mb-1">
+                        <span class="mono-font text-[9px] uppercase tracking-widest text-gray-400 font-bold">Onboarding</span>
+                        <span class="mono-font text-[10px] font-bold ${pct === 100 ? 'text-emerald-600' : 'text-gray-500'}">${pct}%</span>
+                    </div>
+                    <div class="w-full bg-gray-100 rounded-full h-1.5">
+                        <div class="${barColor} h-1.5 rounded-full progress-bar" style="width:${pct}%"></div>
+                    </div>
+                </div>
+                <div class="flex items-center justify-between text-[12px]">
+                    <div class="mono-font ${licenseColor}">${d.license_expiry ? `Exp. ${fmtDate(d.license_expiry)}` : 'No license date'}</div>
+                    <div class="flex items-center gap-2">
+                        ${(pendingDocsByDriver[d.id] || 0) > 0 ? `<span class="mono-font text-[9px] font-bold text-red-600 bg-red-50 px-1.5 py-0.5 rounded-full flex items-center gap-1"><i class="ph-fill ph-warning-circle text-[9px]"></i>${pendingDocsByDriver[d.id]} doc${pendingDocsByDriver[d.id]!==1?'s':''}</span>` : ''}
+                        <div class="flex gap-1">${memberGroups.slice(0,2).map(g => `<span class="w-2 h-2 rounded-full" style="background:${g.color}" title="${g.name}"></span>`).join('')}</div>
+                    </div>
+                </div>
+            </div>`;
+        }).join('');
+        // Fix the grid class since we re-set innerHTML
+        container.className = 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4';
+    }
+
+    // ── GROUP TABS ───────────────────────────────────────────────────────────
+    function renderGroupTabs() {
+        const c = document.getElementById('group-tabs');
+        c.innerHTML = `<button onclick="filterGroup(null)" class="text-[11px] font-bold mono-font uppercase tracking-widest px-3 py-1.5 rounded-full border transition-colors whitespace-nowrap ${activeGroup === null ? 'border-black bg-black text-white' : 'border-gray-300 bg-white text-gray-600 hover:border-black hover:text-black'}">All drivers</button>`;
+        groups.forEach(g => {
+            const active = activeGroup === g.id;
+            const cnt = drivers.filter(d => d.driver_group_members?.some(m => m.group_id === g.id)).length;
+            c.innerHTML += `<button onclick="filterGroup('${g.id}')" class="text-[11px] font-bold mono-font uppercase tracking-widest px-3 py-1.5 rounded-full border transition-colors whitespace-nowrap flex items-center gap-1.5 ${active ? 'border-black bg-black text-white' : 'border-gray-300 bg-white text-gray-600 hover:border-black hover:text-black'}">
+                <span class="w-2 h-2 rounded-full flex-shrink-0" style="background:${active ? '#fff' : g.color}"></span>${g.name} <span class="opacity-60">${cnt}</span>
+            </button>`;
+        });
+    }
+
+    window.filterGroup = function(id) { activeGroup = id; renderGroupTabs(); renderDrivers(); };
+
+    // ── VIEW TOGGLE ──────────────────────────────────────────────────────────
+    window.setView = function(v) {
+        currentView = v;
+        document.getElementById('view-table-btn').className = `px-3 py-1.5 text-[10px] mono-font uppercase tracking-widest font-bold transition-colors ${v === 'table' ? 'bg-black text-white' : 'text-gray-500 hover:bg-gray-50'}`;
+        document.getElementById('view-card-btn').className  = `px-3 py-1.5 text-[10px] mono-font uppercase tracking-widest font-bold transition-colors ${v === 'card'  ? 'bg-black text-white' : 'text-gray-500 hover:bg-gray-50'}`;
+        renderDrivers();
+    };
+
+    // ── DRIVER MODAL ─────────────────────────────────────────────────────────
+    window.openDriverModal = function(driverId) {
+        editingId = driverId || null;
+        const d = driverId ? drivers.find(x => x.id === driverId) : null;
+
+        document.getElementById('dm-sub').textContent   = d ? 'Edit Driver' : 'New Driver';
+        document.getElementById('dm-title').textContent = d ? `${d.first_name} ${d.last_name}` : 'Add driver';
+        document.getElementById('dm-delete-btn').classList.toggle('hidden', !d);
+
+        // Populate info fields
+        document.getElementById('dm-first').value      = d?.first_name || '';
+        document.getElementById('dm-last').value       = d?.last_name  || '';
+        document.getElementById('dm-driver-id').value  = d?.driver_id  || '';
+        document.getElementById('dm-phone').value      = d?.phone      || '';
+        document.getElementById('dm-email').value      = d?.email      || '';
+        document.getElementById('dm-vehicle').value    = d?.vehicle_ref|| '';
+        document.getElementById('dm-hire-date').value  = d?.hire_date  || '';
+        document.getElementById('dm-status').value     = d?.status     || 'active';
+        document.getElementById('dm-notes').value      = d?.notes      || '';
+
+        // License + PPV
+        document.getElementById('dm-license-num').value    = d?.license_number || '';
+        document.getElementById('dm-license-expiry').value = d?.license_expiry || '';
+        document.getElementById('dm-ppv-number').value     = d?.ppv_number || '';
+        document.getElementById('dm-ppv-expiry').value     = d?.ppv_expiry || '';
+        updateLicenseBanner();
+        updatePpvBanner();
+
+        // Owner dropdown
+        const ownerSel = document.getElementById('dm-owner-id');
+        if (ownerSel) ownerSel.value = d?.owner_id || '';
+
+        // Groups checkboxes
+        const memberGroupIds = (d?.driver_group_members || []).map(m => m.group_id);
+        renderGroupCheckboxes(memberGroupIds);
+
+        // Onboarding steps
+        renderObSteps(d?.onboarding || {});
+
+        // Docs tab badge
+        const pendingCount = d ? (pendingDocsByDriver[d.id] || 0) : 0;
+        const docsBadge = document.getElementById('dtab-docs-badge');
+        if (pendingCount > 0) { docsBadge.textContent = pendingCount; docsBadge.classList.remove('hidden'); }
+        else docsBadge.classList.add('hidden');
+
+        // Reset docs tab content
+        document.getElementById('dm-docs-loading').classList.remove('hidden');
+        document.getElementById('dm-docs-list').classList.add('hidden');
+        document.getElementById('dm-docs-empty').classList.add('hidden');
+
+        switchDriverTab('info');
+        document.getElementById('driver-modal').classList.remove('hidden');
+    };
+
+    window.closeDriverModal = function() {
+        document.getElementById('driver-modal').classList.add('hidden');
+        editingId = null;
+    };
+
+    window.switchDriverTab = function(tab) {
+        activeDriverTab = tab;
+        ['info','onboarding','license','docs'].forEach(t => {
+            document.getElementById('dm-tab-' + t).classList.toggle('hidden', t !== tab);
+            const btn = document.getElementById('dtab-' + t);
+            if (t === tab) {
+                btn.classList.replace('border-transparent','border-black');
+                btn.classList.replace('text-gray-400','text-black');
+            } else {
+                btn.classList.replace('border-black','border-transparent');
+                btn.classList.replace('text-black','text-gray-400');
+            }
+        });
+        if (tab === 'license') updateLicenseBanner();
+        if (tab === 'docs' && editingId) loadDriverDocs(editingId);
+    };
+
+    async function loadDriverDocs(driverRowId) {
+        document.getElementById('dm-docs-loading').classList.remove('hidden');
+        document.getElementById('dm-docs-list').classList.add('hidden');
+        document.getElementById('dm-docs-empty').classList.add('hidden');
+
+        const [{ data: reqs }, { data: completions }] = await Promise.all([
+            supabase.from('document_requirements').select('document_id, driver_id').or(`driver_id.is.null,driver_id.eq.${driverRowId}`),
+            supabase.from('document_completions').select('document_id, completed_at, driver_record_id').eq('driver_record_id', driverRowId),
+        ]);
+
+        document.getElementById('dm-docs-loading').classList.add('hidden');
+
+        if (!reqs || reqs.length === 0) {
+            document.getElementById('dm-docs-empty').classList.remove('hidden');
+            return;
+        }
+
+        const docIds = [...new Set((reqs).map(r => r.document_id))];
+        const { data: docs } = await supabase.from('hub_documents').select('id, name, file_type').in('id', docIds);
+        if (!docs || docs.length === 0) { document.getElementById('dm-docs-empty').classList.remove('hidden'); return; }
+
+        const doneMap = {};
+        (completions || []).forEach(c => { doneMap[c.document_id] = c.completed_at; });
+
+        const allReqIds = new Set(docIds);
+        const isAllDrivers = (id) => (reqs).some(r => r.document_id === id && r.driver_id === null);
+
+        const listEl = document.getElementById('dm-docs-list');
+        listEl.innerHTML = docs.map(doc => {
+            const done = !!doneMap[doc.document_id || doc.id];
+            const docId = doc.id;
+            const scope = isAllDrivers(docId) ? 'All drivers' : 'This driver';
+            const when = doneMap[docId] ? new Date(doneMap[docId]).toLocaleString('en-US', { month:'short', day:'numeric', year:'numeric', hour:'numeric', minute:'2-digit' }) : null;
+            return `
+                <div class="flex items-center gap-3 p-3.5 rounded-lg border ${done ? 'border-emerald-200 bg-emerald-50' : 'border-gray-200 bg-white'}">
+                    <i class="ph-${done ? 'fill ph-check-circle text-emerald-500' : 'bold ph-clock text-gray-400'} text-xl flex-shrink-0"></i>
+                    <div class="flex-1 min-w-0">
+                        <div class="text-[13px] font-semibold text-black truncate">${doc.name}</div>
+                        <div class="mono-font text-[10px] mt-0.5 ${done ? 'text-emerald-600' : 'text-gray-400'}">
+                            ${done ? `Acknowledged ${when}` : 'Pending acknowledgement'} · <span class="text-gray-400">${scope}</span>
+                        </div>
+                    </div>
+                    ${done
+                        ? `<span class="mono-font text-[9px] font-bold uppercase tracking-wider px-2 py-1 rounded-full bg-emerald-100 text-emerald-700">Done</span>`
+                        : `<span class="mono-font text-[9px] font-bold uppercase tracking-wider px-2 py-1 rounded-full bg-red-50 text-red-600">Pending</span>`
+                    }
+                </div>`;
+        }).join('');
+
+        // Update tab badge
+        const pending = docs.filter(d => !doneMap[d.id]).length;
+        const badge = document.getElementById('dtab-docs-badge');
+        if (pending > 0) { badge.textContent = pending; badge.classList.remove('hidden'); }
+        else badge.classList.add('hidden');
+
+        listEl.classList.remove('hidden');
+    }
+
+    function renderGroupCheckboxes(selectedIds = []) {
+        const c = document.getElementById('dm-groups-checkboxes');
+        if (groups.length === 0) { c.innerHTML = '<span class="text-[12px] text-gray-400 italic">No groups yet — create one via the Groups button.</span>'; return; }
+        c.innerHTML = groups.map(g => `
+            <label class="flex items-center gap-2 cursor-pointer text-[12px] text-gray-700 hover:text-black transition-colors">
+                <input type="checkbox" value="${g.id}" class="rounded border-gray-300 focus:ring-0 accent-black" ${selectedIds.includes(g.id) ? 'checked' : ''}>
+                <span class="w-2.5 h-2.5 rounded-full flex-shrink-0" style="background:${g.color}"></span>
+                ${g.name}
+            </label>`).join('');
+    }
+
+    function renderObSteps(ob) {
+        const list = document.getElementById('dm-steps-list');
+        list.innerHTML = OB_STEPS.map(s => `
+            <label class="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 cursor-pointer transition-colors border border-transparent hover:border-gray-200 group step-check">
+                <input type="checkbox" id="ob-${s.key}" class="w-4 h-4 rounded border-gray-300 focus:ring-0 accent-black flex-shrink-0" ${ob[s.key] ? 'checked' : ''} onchange="updateObProgress()">
+                <i class="ph-bold ${s.icon} text-[15px] ${ob[s.key] ? 'text-emerald-500' : 'text-gray-300'} group-hover:text-gray-400 transition-colors"></i>
+                <span class="text-[13px] ${ob[s.key] ? 'text-black font-medium' : 'text-gray-600'}">${s.label}</span>
+                ${ob[s.key] ? '<i class="ph-fill ph-check-circle text-emerald-500 ml-auto text-[15px]"></i>' : ''}
+            </label>`).join('');
+        updateObProgress();
+    }
+
+    window.updateObProgress = function() {
+        const checked = OB_STEPS.filter(s => document.getElementById('ob-' + s.key)?.checked).length;
+        const pct = Math.round((checked / OB_STEPS.length) * 100);
+        document.getElementById('dm-ob-pct').textContent = pct + '%';
+        const bar = document.getElementById('dm-ob-bar');
+        bar.style.width = pct + '%';
+        bar.className = `h-2 rounded-full progress-bar ${pct === 100 ? 'bg-emerald-500' : pct >= 50 ? 'bg-amber-400' : 'bg-gray-400'}`;
+    };
+
+    function updateLicenseBanner() {
+        const expiry = document.getElementById('dm-license-expiry').value;
+        const banner = document.getElementById('dm-license-status-banner');
+        if (!expiry) { banner.classList.add('hidden'); return; }
+        const ls = licenseState(expiry);
+        banner.classList.remove('hidden');
+        if (ls === 'expired') {
+            banner.className = 'p-3 rounded-lg border border-red-200 bg-red-50 text-[13px] font-medium flex items-center gap-2 mb-4 text-red-700';
+            banner.innerHTML = '<i class="ph-fill ph-warning"></i> License EXPIRED — driver cannot operate vehicles.';
+        } else if (ls === 'warn') {
+            const days = Math.ceil((new Date(expiry) - new Date()) / 86400000);
+            banner.className = 'p-3 rounded-lg border border-amber-200 bg-amber-50 text-[13px] font-medium flex items-center gap-2 mb-4 text-amber-700';
+            banner.innerHTML = `<i class="ph-fill ph-warning"></i> License expires in ${days} day${days !== 1 ? 's' : ''} — renewal needed.`;
+        } else {
+            banner.className = 'p-3 rounded-lg border border-emerald-200 bg-emerald-50 text-[13px] font-medium flex items-center gap-2 mb-4 text-emerald-700';
+            banner.innerHTML = '<i class="ph-fill ph-check-circle"></i> License is valid.';
+        }
+    }
+
+    document.getElementById('dm-license-expiry').addEventListener('change', updateLicenseBanner);
+
+    window.updatePpvBanner = function() {
+        const expiry = document.getElementById('dm-ppv-expiry').value;
+        const banner = document.getElementById('dm-ppv-banner');
+        if (!banner) return;
+        if (!expiry) { banner.classList.add('hidden'); return; }
+        const days = Math.ceil((new Date(expiry) - new Date()) / 86400000);
+        banner.classList.remove('hidden');
+        if (days < 0) {
+            banner.className = 'mt-3 p-3 rounded-lg border border-red-200 bg-red-50 text-[13px] font-medium flex items-center gap-2 text-red-700';
+            banner.innerHTML = '<i class="ph-fill ph-warning"></i> PPV permit EXPIRED — must be renewed to operate.';
+        } else if (days < 30) {
+            banner.className = 'mt-3 p-3 rounded-lg border border-amber-200 bg-amber-50 text-[13px] font-medium flex items-center gap-2 text-amber-700';
+            banner.innerHTML = `<i class="ph-fill ph-warning"></i> PPV expires in ${days} day${days !== 1 ? 's' : ''} — renew soon.`;
+        } else {
+            banner.className = 'mt-3 p-3 rounded-lg border border-emerald-200 bg-emerald-50 text-[13px] font-medium flex items-center gap-2 text-emerald-700';
+            banner.innerHTML = '<i class="ph-fill ph-check-circle"></i> PPV permit is valid.';
+        }
+    };
+
+    window.saveDriver = async function() {
+        const first = document.getElementById('dm-first').value.trim();
+        const last  = document.getElementById('dm-last').value.trim();
+        if (!first && !last) { alert('Please enter a driver name.'); return; }
+
+        const ob = {};
+        OB_STEPS.forEach(s => { ob[s.key] = document.getElementById('ob-' + s.key)?.checked || false; });
+
+        const payload = {
+            first_name:     first,
+            last_name:      last,
+            driver_id:      document.getElementById('dm-driver-id').value.trim() || null,
+            phone:          document.getElementById('dm-phone').value.trim() || null,
+            email:          document.getElementById('dm-email').value.trim() || null,
+            vehicle_ref:    document.getElementById('dm-vehicle').value.trim() || null,
+            hire_date:      document.getElementById('dm-hire-date').value || null,
+            status:         document.getElementById('dm-status').value,
+            license_number: document.getElementById('dm-license-num').value.trim().toUpperCase() || null,
+            license_expiry: document.getElementById('dm-license-expiry').value || null,
+            ppv_number:     document.getElementById('dm-ppv-number').value.trim().toUpperCase() || null,
+            ppv_expiry:     document.getElementById('dm-ppv-expiry').value || null,
+            owner_id:       document.getElementById('dm-owner-id').value || null,
+            notes:          document.getElementById('dm-notes').value.trim() || null,
+            onboarding:     ob,
+            updated_at:     new Date().toISOString(),
+        };
+
+        let driverId = editingId;
+        if (editingId) {
+            await supabase.from('drivers').update(payload).eq('id', editingId);
+        } else {
+            const { data } = await supabase.from('drivers').insert(payload).select().single();
+            driverId = data?.id;
+        }
+
+        if (driverId) {
+            const selectedGroups = [...document.querySelectorAll('#dm-groups-checkboxes input:checked')].map(cb => cb.value);
+            await supabase.from('driver_group_members').delete().eq('driver_id', driverId);
+            if (selectedGroups.length > 0) {
+                await supabase.from('driver_group_members').insert(selectedGroups.map(gid => ({ driver_id: driverId, group_id: gid })));
+            }
+        }
+
+        closeDriverModal();
+        await loadData();
+    };
+
+    window.deleteDriver = async function() {
+        if (!editingId || !confirm('Permanently delete this driver? This cannot be undone.')) return;
+        await supabase.from('driver_group_members').delete().eq('driver_id', editingId);
+        await supabase.from('drivers').delete().eq('id', editingId);
+        closeDriverModal();
+        await loadData();
+    };
+
+    // ── GROUP MODAL ──────────────────────────────────────────────────────────
+    window.openGroupModal = function() {
+        renderGroupsList();
+        document.getElementById('group-modal').classList.remove('hidden');
+    };
+    window.closeGroupModal = function() { document.getElementById('group-modal').classList.add('hidden'); };
+
+    function renderGroupsList() {
+        const c = document.getElementById('groups-list');
+        if (groups.length === 0) { c.innerHTML = '<p class="text-[13px] text-gray-400 py-4 text-center">No groups yet.</p>'; return; }
+        c.innerHTML = groups.map(g => {
+            const cnt = drivers.filter(d => d.driver_group_members?.some(m => m.group_id === g.id)).length;
+            return `<div class="flex items-center justify-between py-3">
+                <div class="flex items-center gap-2.5">
+                    <span class="w-3 h-3 rounded-full flex-shrink-0" style="background:${g.color}"></span>
+                    <span class="text-[13px] font-medium text-black">${g.name}</span>
+                    <span class="mono-font text-[10px] text-gray-400">${cnt} driver${cnt !== 1 ? 's' : ''}</span>
+                </div>
+                <button onclick="deleteGroup('${g.id}')" class="mono-font text-[10px] uppercase tracking-widest font-bold text-red-500 hover:text-red-700 transition-colors">Remove</button>
+            </div>`;
+        }).join('');
+    }
+
+    window.addGroup = async function() {
+        const name  = document.getElementById('new-group-name').value.trim();
+        const color = document.getElementById('new-group-color').value;
+        if (!name) return;
+        await supabase.from('driver_groups').insert({ name, color });
+        document.getElementById('new-group-name').value = '';
+        await loadGroups();
+        renderGroupsList();
+        renderGroupTabs();
+        // refresh group checkboxes if modal open
+        const d = editingId ? drivers.find(x => x.id === editingId) : null;
+        renderGroupCheckboxes((d?.driver_group_members || []).map(m => m.group_id));
+    };
+
+    window.deleteGroup = async function(id) {
+        if (!confirm('Remove this group? Drivers will not be deleted.')) return;
+        await supabase.from('driver_group_members').delete().eq('group_id', id);
+        await supabase.from('driver_groups').delete().eq('id', id);
+        if (activeGroup === id) activeGroup = null;
+        await loadGroups();
+        renderGroupsList();
+        renderGroupTabs();
+        renderDrivers();
+    };
+
+    // ── HELPERS ──────────────────────────────────────────────────────────────
+    function obPct(ob) {
+        if (!ob) return 0;
+        const done = OB_STEPS.filter(s => ob[s.key]).length;
+        return Math.round((done / OB_STEPS.length) * 100);
+    }
+
+    function licenseState(expiry) {
+        if (!expiry) return 'unknown';
+        const exp = new Date(expiry);
+        const now = new Date();
+        const daysLeft = Math.ceil((exp - now) / 86400000);
+        if (daysLeft < 0) return 'expired';
+        if (daysLeft < 60) return 'warn';
+        return 'ok';
+    }
+
+    function fmtDate(d) {
+        if (!d) return '—';
+        return new Date(d + 'T12:00:00').toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' });
+    }
+</script>
+</body>
+</html>

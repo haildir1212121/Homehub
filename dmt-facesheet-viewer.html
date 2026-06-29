@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Face Sheet Viewer · DMT</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://unpkg.com/@phosphor-icons/web"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Inter+Tight:wght@500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; }
+  body { font-family: 'Inter', sans-serif; }
+  .display-font { font-family: 'Inter Tight', sans-serif; }
+  .mono-font { font-family: 'JetBrains Mono', monospace; }
+
+  /* Views */
+  #login-view { display: none; }
+  #login-view.active { display: flex; }
+  #app-view { display: none; }
+  #app-view.active { display: flex; }
+
+  /* Lightbox */
+  #lightbox { display: none; }
+  #lightbox.open { display: flex; }
+
+  /* Spinner */
+  .spinner { display: inline-block; width: 15px; height: 15px; border: 2px solid rgba(255,255,255,0.3); border-top-color: white; border-radius: 50%; animation: spin 0.6s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* Toast */
+  @keyframes slideIn { from { opacity:0; transform:translateX(16px); } to { opacity:1; transform:translateX(0); } }
+  .toast-anim { animation: slideIn 0.2s ease; }
+
+  /* Table hover */
+  .list-row:hover td { background: #f9fafb; }
+  .list-row td:first-child { border-radius: 6px 0 0 6px; }
+  .list-row td:last-child { border-radius: 0 6px 6px 0; }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 5px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: #e5e7eb; border-radius: 99px; }
+</style>
+</head>
+<body class="antialiased bg-white text-[#1a1a1a] min-h-screen">
+
+<!-- ── LOGIN VIEW ── -->
+<div id="login-view" class="min-h-screen">
+  <!-- Left panel -->
+  <aside class="hidden lg:flex flex-col justify-between bg-black text-white p-10 w-[52%] relative overflow-hidden">
+    <div class="flex items-center gap-3">
+      <div class="w-7 h-7 bg-white text-black rounded flex items-center justify-center font-bold text-xs">FS</div>
+      <span class="font-semibold text-sm tracking-tight">Face Sheet Viewer</span>
+    </div>
+    <div class="display-font text-[4vw] font-semibold leading-[0.92] tracking-tighter">
+      All uploads,<br/>one <em class="not-italic text-[#D97757]">place.</em>
+    </div>
+    <div class="grid grid-cols-2 gap-y-2 gap-x-6 mono-font text-[10px] tracking-[0.12em] uppercase text-gray-400">
+      <span>Access</span><b class="text-white font-medium">Admin · All Uploads</b>
+      <span>Storage</span><b class="text-white font-medium">Encrypted · Auto-purge</b>
+    </div>
+  </aside>
+
+  <!-- Right panel -->
+  <div class="flex-1 flex items-center justify-center p-8 bg-white">
+    <div class="w-full max-w-[360px]">
+      <div class="mb-8">
+        <div class="mono-font text-[10px] tracking-[0.14em] text-gray-500 uppercase mb-2">Face Sheet Viewer · 001</div>
+        <h2 class="display-font text-3xl font-semibold text-black tracking-tight">Welcome back.</h2>
+        <p class="text-[13px] text-gray-500 mt-1">Sign in with your @oregontaxi.com account.</p>
+      </div>
+      <div class="space-y-4">
+        <div>
+          <label class="block mono-font text-[10px] tracking-widest text-gray-500 uppercase mb-1.5">Email Address</label>
+          <input type="email" id="login-email" placeholder="you@oregontaxi.com"
+            class="w-full rounded-md border border-gray-300 p-2.5 text-[13px] focus:outline-none focus:border-black transition-colors" />
+        </div>
+        <div>
+          <label class="block mono-font text-[10px] tracking-widest text-gray-500 uppercase mb-1.5">Password</label>
+          <input type="password" id="login-password" placeholder="••••••••"
+            class="w-full rounded-md border border-gray-300 p-2.5 text-[13px] focus:outline-none focus:border-black transition-colors" />
+        </div>
+        <button id="login-btn" onclick="doLogin()"
+          class="w-full bg-black hover:bg-[#222] text-white font-semibold py-2.5 rounded-md transition-colors flex justify-center items-center gap-2 mt-2">
+          <span id="login-btn-text">Sign In</span>
+          <i class="ph-bold ph-arrow-right"></i>
+        </button>
+        <div id="login-err" class="hidden text-[12px] text-red-500 mono-font text-center pt-1"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── APP VIEW ── -->
+<div id="app-view" class="flex-col min-h-screen">
+
+  <!-- Topbar -->
+  <header class="flex items-center justify-between px-5 h-[60px] border-b border-gray-200 bg-white sticky top-0 z-20 flex-shrink-0">
+    <div class="flex items-center gap-3">
+      <div class="w-7 h-7 bg-black text-white rounded flex items-center justify-center font-bold text-[11px]">FS</div>
+      <span class="display-font text-[15px] font-semibold tracking-tight">Face Sheet Viewer</span>
+      <span class="mono-font text-[10px] tracking-[0.12em] uppercase text-gray-400 hidden sm:block">· Admin · All Uploads</span>
+    </div>
+    <div class="flex items-center gap-2">
+      <div class="hidden sm:flex items-center gap-1.5 bg-gray-50 border border-gray-200 rounded-full px-3 py-1.5">
+        <i class="ph-bold ph-user text-[11px] text-gray-400"></i>
+        <span class="mono-font text-[10px] text-gray-600" id="user-email-display">—</span>
+      </div>
+      <button onclick="doSignOut()"
+        class="flex items-center gap-1.5 border border-gray-200 rounded-md px-3 py-1.5 text-[12px] text-gray-500 hover:text-black hover:border-gray-400 transition-colors">
+        <i class="ph-bold ph-sign-out text-[12px]"></i>
+        <span>Sign out</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- Toolbar -->
+  <div class="flex items-center gap-3 flex-wrap px-5 py-3 border-b border-gray-100 bg-white">
+    <div class="relative flex-1 min-w-[180px] max-w-[300px]">
+      <i class="ph-bold ph-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-[13px] text-gray-300 pointer-events-none"></i>
+      <input type="text" id="search-input" placeholder="Search patient, driver, vehicle…" oninput="applyFilters()"
+        class="w-full pl-8 pr-3 py-2 border border-gray-200 rounded-md mono-font text-[11px] focus:outline-none focus:border-black transition-colors" />
+    </div>
+    <select id="filter-date" onchange="applyFilters()"
+      class="border border-gray-200 rounded-md px-3 py-2 mono-font text-[11px] text-gray-600 focus:outline-none focus:border-black transition-colors bg-white">
+      <option value="">All dates</option>
+      <option value="today">Today</option>
+      <option value="week">This week</option>
+      <option value="month">This month</option>
+    </select>
+    <select id="filter-type" onchange="applyFilters()"
+      class="border border-gray-200 rounded-md px-3 py-2 mono-font text-[11px] text-gray-600 focus:outline-none focus:border-black transition-colors bg-white">
+      <option value="">All types</option>
+      <option value="image">Images</option>
+      <option value="pdf">PDFs</option>
+    </select>
+    <span class="mono-font text-[10px] text-gray-300" id="record-count"></span>
+    <!-- View toggle -->
+    <div class="flex border border-gray-200 rounded-md overflow-hidden ml-auto">
+      <button id="btn-grid" onclick="setView('grid')"
+        class="px-3 py-2 text-[13px] text-gray-400 hover:bg-gray-50 transition-colors border-r border-gray-200 bg-black text-white"
+        title="Grid view"><i class="ph-bold ph-squares-four"></i></button>
+      <button id="btn-list" onclick="setView('list')"
+        class="px-3 py-2 text-[13px] text-gray-400 hover:bg-gray-50 transition-colors"
+        title="List view"><i class="ph-bold ph-list"></i></button>
+    </div>
+  </div>
+
+  <!-- Grid view -->
+  <div id="grid-view" class="flex-1 p-5">
+    <div id="grid-container" class="grid gap-3" style="grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));">
+      <div class="col-span-full py-16 text-center mono-font text-[11px] text-gray-300">Loading…</div>
+    </div>
+  </div>
+
+  <!-- List view -->
+  <div id="list-view" class="flex-1 p-5 hidden">
+    <table class="w-full border-collapse">
+      <thead>
+        <tr>
+          <th class="text-left mono-font text-[10px] uppercase tracking-[0.08em] text-gray-400 pb-3 px-3 border-b border-gray-100 font-normal" style="width:44px"></th>
+          <th class="text-left mono-font text-[10px] uppercase tracking-[0.08em] text-gray-400 pb-3 px-3 border-b border-gray-100 font-normal">Patient</th>
+          <th class="text-left mono-font text-[10px] uppercase tracking-[0.08em] text-gray-400 pb-3 px-3 border-b border-gray-100 font-normal">Date</th>
+          <th class="text-left mono-font text-[10px] uppercase tracking-[0.08em] text-gray-400 pb-3 px-3 border-b border-gray-100 font-normal">Driver</th>
+          <th class="text-left mono-font text-[10px] uppercase tracking-[0.08em] text-gray-400 pb-3 px-3 border-b border-gray-100 font-normal">Vehicle</th>
+          <th class="text-left mono-font text-[10px] uppercase tracking-[0.08em] text-gray-400 pb-3 px-3 border-b border-gray-100 font-normal">Uploaded by</th>
+          <th class="text-left mono-font text-[10px] uppercase tracking-[0.08em] text-gray-400 pb-3 px-3 border-b border-gray-100 font-normal">File</th>
+        </tr>
+      </thead>
+      <tbody id="list-container">
+        <tr><td colspan="7" class="py-12 text-center mono-font text-[11px] text-gray-300">Loading…</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ── LIGHTBOX ── -->
+<div id="lightbox" onclick="lbClickOutside(event)"
+  class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm items-center justify-center p-5">
+  <div id="lb-inner" class="flex w-full max-w-[960px] max-h-[90vh] bg-white rounded-xl overflow-hidden border border-gray-200 shadow-2xl">
+    <!-- Preview -->
+    <div id="lb-preview" class="flex-1 bg-gray-50 flex items-center justify-center min-h-[400px] overflow-hidden relative">
+      <i class="ph-bold ph-file-text text-[64px] text-gray-200"></i>
+    </div>
+    <!-- Sidebar -->
+    <div class="w-[270px] flex-shrink-0 flex flex-col border-l border-gray-100">
+      <div class="flex items-center justify-between px-4 py-3 border-b border-gray-100">
+        <span class="display-font text-[14px] font-semibold text-black" id="lb-title">Face Sheet</span>
+        <button onclick="closeLightbox()" class="text-gray-300 hover:text-red-500 transition-colors p-1 rounded">
+          <i class="ph-bold ph-x text-[14px]"></i>
+        </button>
+      </div>
+      <div class="flex-1 overflow-y-auto p-4 flex flex-col gap-4" id="lb-meta"></div>
+      <div class="p-4 border-t border-gray-100 flex flex-col gap-2">
+        <a id="lb-download" href="#" download
+          class="flex items-center justify-center gap-2 bg-black hover:bg-[#222] text-white text-[13px] font-medium py-2.5 rounded-md transition-colors no-underline">
+          <i class="ph-bold ph-download-simple"></i> Download
+        </a>
+        <a id="lb-open" href="#" target="_blank" rel="noopener"
+          class="flex items-center justify-center gap-2 border border-gray-200 hover:border-gray-400 text-[13px] text-gray-600 hover:text-black py-2.5 rounded-md transition-colors no-underline">
+          <i class="ph-bold ph-arrow-square-out"></i> Open in new tab
+        </a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="toast-wrap" class="fixed bottom-5 right-5 flex flex-col gap-2 z-50"></div>
+
+<script>
+const SUPABASE_URL = 'https://mdutrtmdjodabggirntb.supabase.co';
+const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kdXRydG1kam9kYWJnZ2lybnRiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ5MDk3MzQsImV4cCI6MjA5MDQ4NTczNH0.GlrbsjnkBSwhnguBQUCb418NxvRO02PhXhBJZ69xTi4';
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+const BUCKET = 'face-sheets';
+
+let allRecords = [];
+let filtered = [];
+let currentView = 'grid';
+let currentUser = null;
+
+(async () => {
+  const { data: { session } } = await sb.auth.getSession();
+  if (session) { currentUser = session.user; showApp(); }
+  else showLoginView();
+  sb.auth.onAuthStateChange((_e, session) => {
+    if (session) { currentUser = session.user; showApp(); }
+    else showLoginView();
+  });
+})();
+
+function showLoginView() {
+  document.getElementById('login-view').classList.add('active');
+  document.getElementById('app-view').classList.remove('active');
+}
+function showApp() {
+  document.getElementById('login-view').classList.remove('active');
+  document.getElementById('app-view').classList.add('active');
+  document.getElementById('user-email-display').textContent = currentUser?.email ?? '—';
+  loadRecords();
+}
+
+async function doLogin() {
+  const email = document.getElementById('login-email').value.trim();
+  const pw = document.getElementById('login-password').value;
+  const btn = document.getElementById('login-btn');
+  const err = document.getElementById('login-err');
+  err.classList.add('hidden');
+  if (!email || !pw) { showErr('Email and password required.'); return; }
+  btn.disabled = true;
+  document.getElementById('login-btn-text').innerHTML = '<span class="spinner"></span>';
+  const { error } = await sb.auth.signInWithPassword({ email, password: pw });
+  btn.disabled = false;
+  document.getElementById('login-btn-text').textContent = 'Sign In';
+  if (error) { err.textContent = error.message; err.classList.remove('hidden'); }
+  function showErr(msg) { err.textContent = msg; err.classList.remove('hidden'); }
+}
+async function doSignOut() { await sb.auth.signOut(); }
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && document.getElementById('login-view').classList.contains('active')) doLogin();
+  if (e.key === 'Escape') closeLightbox();
+});
+
+async function loadRecords() {
+  renderLoading();
+  const { data, error } = await sb.from('facesheet_uploads').select('*')
+    .order('uploaded_at', { ascending: false }).limit(200);
+  if (error) {
+    const msg = `DB error: ${error.message} (code: ${error.code ?? 'none'})`;
+    document.getElementById('grid-container').innerHTML = `<div class="col-span-full py-10 text-center mono-font text-[11px] text-red-400">${esc(msg)}</div>`;
+    document.getElementById('list-container').innerHTML = `<tr><td colspan="7" class="py-10 text-center mono-font text-[11px] text-red-400">${esc(msg)}</td></tr>`;
+    toast(msg, 'error');
+    return;
+  }
+  if (!data || data.length === 0) {
+    document.getElementById('grid-container').innerHTML = `<div class="col-span-full py-16 text-center">
+      <i class="ph-bold ph-file-text text-[36px] text-gray-200 mb-3 block"></i>
+      <div class="mono-font text-[11px] text-gray-300">No records found</div>
+      <div class="mono-font text-[10px] text-gray-200 mt-1">Check RLS policy — authenticated users need SELECT on all rows.</div>
+    </div>`;
+    return;
+  }
+  allRecords = data ?? [];
+  applyFilters();
+}
+
+function applyFilters() {
+  const q = document.getElementById('search-input').value.toLowerCase();
+  const dateFilter = document.getElementById('filter-date').value;
+  const typeFilter = document.getElementById('filter-type').value;
+  const now = new Date();
+  filtered = allRecords.filter(r => {
+    if (q) {
+      const hay = [r.patient_name, r.driver_name, r.vehicle_number, r.notes, r.uploader_email, r.filename].join(' ').toLowerCase();
+      if (!hay.includes(q)) return false;
+    }
+    if (dateFilter && r.uploaded_at) {
+      const d = new Date(r.uploaded_at);
+      if (dateFilter === 'today' && d.toDateString() !== now.toDateString()) return false;
+      if (dateFilter === 'week') { const wa = new Date(now); wa.setDate(now.getDate()-7); if (d < wa) return false; }
+      if (dateFilter === 'month' && (d.getMonth() !== now.getMonth() || d.getFullYear() !== now.getFullYear())) return false;
+    }
+    if (typeFilter) {
+      if (typeFilter === 'image' && !r.mimetype?.startsWith('image/')) return false;
+      if (typeFilter === 'pdf' && r.mimetype !== 'application/pdf') return false;
+    }
+    return true;
+  });
+  document.getElementById('record-count').textContent = `${filtered.length} of ${allRecords.length}`;
+  render();
+}
+
+function setView(v) {
+  currentView = v;
+  const gridBtn = document.getElementById('btn-grid');
+  const listBtn = document.getElementById('btn-list');
+  document.getElementById('grid-view').classList.toggle('hidden', v !== 'grid');
+  document.getElementById('list-view').classList.toggle('hidden', v !== 'list');
+  gridBtn.className = gridBtn.className.replace(/bg-black text-white|text-gray-400 bg-white/g, '');
+  listBtn.className = listBtn.className.replace(/bg-black text-white|text-gray-400 bg-white/g, '');
+  if (v === 'grid') {
+    gridBtn.classList.add('bg-black', 'text-white');
+    listBtn.classList.add('text-gray-400');
+  } else {
+    listBtn.classList.add('bg-black', 'text-white');
+    gridBtn.classList.add('text-gray-400');
+  }
+  render();
+}
+
+function renderLoading() {
+  document.getElementById('grid-container').innerHTML = `<div class="col-span-full py-16 text-center mono-font text-[11px] text-gray-300">Loading…</div>`;
+  document.getElementById('list-container').innerHTML = `<tr><td colspan="7" class="py-12 text-center mono-font text-[11px] text-gray-300">Loading…</td></tr>`;
+}
+
+function render() {
+  if (currentView === 'grid') renderGrid(); else renderList();
+}
+
+function renderGrid() {
+  const c = document.getElementById('grid-container');
+  if (!filtered.length) {
+    c.innerHTML = `<div class="col-span-full py-16 text-center mono-font text-[11px] text-gray-300">No records found</div>`;
+    return;
+  }
+  c.innerHTML = filtered.map((r, i) => {
+    const isImg = r.mimetype?.startsWith('image/');
+    const thumb = isImg
+      ? `<img class="w-full h-[130px] object-cover bg-gray-100 block border-b border-gray-100" src="" loading="lazy" data-grid-idx="${i}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'" alt="" /><div class="w-full h-[130px] bg-gray-50 hidden items-center justify-center border-b border-gray-100"><i class="ph-bold ph-file-text text-[32px] text-gray-200"></i></div>`
+      : `<div class="w-full h-[130px] bg-gray-50 flex items-center justify-center border-b border-gray-100"><i class="ph-bold ph-file-pdf text-[32px] text-gray-200"></i></div>`;
+    return `<div class="border border-gray-100 rounded-xl overflow-hidden cursor-pointer hover:border-[#D97757] transition-all hover:-translate-y-px bg-white group" onclick="openLightbox(${i})">
+      ${thumb}
+      <div class="p-3">
+        <div class="text-[13px] font-medium text-black truncate">${esc(r.patient_name || 'Unknown patient')}</div>
+        <div class="mono-font text-[10px] text-gray-400 mt-0.5 truncate">${esc(r.trip_date || '—')} · ${esc(r.driver_name || '—')}</div>
+      </div>
+    </div>`;
+  }).join('');
+  hydrateImages(filtered);
+}
+
+function renderList() {
+  const tbody = document.getElementById('list-container');
+  if (!filtered.length) {
+    tbody.innerHTML = `<tr><td colspan="7" class="py-12 text-center mono-font text-[11px] text-gray-300">No records found</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = filtered.map((r, i) => {
+    const isImg = r.mimetype?.startsWith('image/');
+    const thumb = isImg
+      ? `<img class="w-9 h-9 rounded-md object-cover bg-gray-100" src="" loading="lazy" data-list-idx="${i}" onerror="this.outerHTML='<div class=\'w-9 h-9 rounded-md bg-gray-100 flex items-center justify-center\'><i class=\'ph-bold ph-file-text text-[14px] text-gray-300\'></i></div>'" alt="" />`
+      : `<div class="w-9 h-9 rounded-md bg-gray-100 flex items-center justify-center"><i class="ph-bold ph-file-pdf text-[14px] text-gray-300"></i></div>`;
+    return `<tr class="list-row cursor-pointer" onclick="openLightbox(${i})">
+      <td class="py-2.5 px-3">${thumb}</td>
+      <td class="py-2.5 px-3 text-[13px] font-medium text-black">${esc(r.patient_name || '—')}</td>
+      <td class="py-2.5 px-3 mono-font text-[11px] text-gray-400">${esc(r.trip_date || '—')}</td>
+      <td class="py-2.5 px-3 text-[13px] text-gray-600">${esc(r.driver_name || '—')}</td>
+      <td class="py-2.5 px-3 mono-font text-[11px] text-gray-400">${r.vehicle_number ? '#'+esc(r.vehicle_number) : '—'}</td>
+      <td class="py-2.5 px-3 mono-font text-[10px] text-gray-400">${esc(r.uploader_email || '—')}</td>
+      <td class="py-2.5 px-3 mono-font text-[10px] text-gray-400 max-w-[140px] truncate overflow-hidden">${esc(r.filename || '—')}</td>
+    </tr>`;
+  }).join('');
+  hydrateImages(filtered);
+}
+
+const urlCache = {};
+async function getSignedUrl(path) {
+  if (urlCache[path] && urlCache[path].expires > Date.now()) return urlCache[path].url;
+  const { data, error } = await sb.storage.from(BUCKET).createSignedUrl(path, 3600);
+  if (error || !data?.signedUrl) return null;
+  urlCache[path] = { url: data.signedUrl, expires: Date.now() + 3500*1000 };
+  return data.signedUrl;
+}
+
+async function hydrateImages(records) {
+  for (let i = 0; i < records.length; i++) {
+    const r = records[i];
+    if (!r.mimetype?.startsWith('image/')) continue;
+    const url = await getSignedUrl(r.storage_path);
+    if (!url) continue;
+    const gImg = document.querySelector(`img[data-grid-idx="${i}"]`);
+    if (gImg) gImg.src = url;
+    const lImg = document.querySelector(`img[data-list-idx="${i}"]`);
+    if (lImg) lImg.src = url;
+  }
+}
+
+async function openLightbox(idx) {
+  const r = filtered[idx];
+  if (!r) return;
+  const lb = document.getElementById('lightbox');
+  const preview = document.getElementById('lb-preview');
+  const meta = document.getElementById('lb-meta');
+  document.getElementById('lb-title').textContent = r.patient_name || r.filename || 'Face Sheet';
+  preview.innerHTML = `<span class="mono-font text-[11px] text-gray-300">Loading…</span>`;
+  const fileUrl = await getSignedUrl(r.storage_path);
+  if (!fileUrl) {
+    preview.innerHTML = `<div class="mono-font text-[11px] text-red-400 p-8 text-center">Failed to load — check storage permissions</div>`;
+    return;
+  }
+  if (r.mimetype?.startsWith('image/')) {
+    preview.innerHTML = `<img src="${fileUrl}" alt="Face sheet" class="max-w-full max-h-[80vh] object-contain" onerror="this.outerHTML='<i class=ph-bold ph-file-text text-[64px] text-gray-200></i>'" />`;
+  } else if (r.mimetype === 'application/pdf') {
+    preview.innerHTML = `<iframe src="${fileUrl}" class="w-full h-[80vh] border-0"></iframe>`;
+  } else {
+    preview.innerHTML = `<i class="ph-bold ph-file text-[64px] text-gray-200"></i>`;
+  }
+  const fields = [
+    ['Patient', r.patient_name], ['Trip Date', r.trip_date],
+    ['Driver', r.driver_name], ['Vehicle', r.vehicle_number ? '#'+r.vehicle_number : null],
+    ['Notes', r.notes], ['Uploaded by', r.uploader_email],
+    ['Uploaded at', r.uploaded_at ? fmtDate(r.uploaded_at) : null],
+    ['Filename', r.filename], ['File size', r.filesize ? fmtSize(r.filesize) : null],
+  ];
+  meta.innerHTML = fields.map(([label, val]) => `
+    <div class="flex flex-col gap-0.5">
+      <div class="mono-font text-[9px] uppercase tracking-[0.1em] text-gray-300">${label}</div>
+      <div class="text-[13px] text-[#1a1a1a] ${['Filename','File size','Uploaded at'].includes(label) ? 'mono-font text-[11px] text-gray-500' : ''}">${esc(val || '—')}</div>
+    </div>`).join('');
+  document.getElementById('lb-download').href = fileUrl;
+  document.getElementById('lb-download').download = r.filename || 'facesheet';
+  document.getElementById('lb-open').href = fileUrl;
+  lb.classList.add('open');
+}
+
+function closeLightbox() { document.getElementById('lightbox').classList.remove('open'); }
+function lbClickOutside(e) { if (e.target === document.getElementById('lightbox')) closeLightbox(); }
+
+function esc(s) { return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function fmtDate(iso) {
+  return new Date(iso).toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric', hour:'numeric', minute:'2-digit', timeZone:'America/Los_Angeles' });
+}
+function fmtSize(bytes) {
+  if (bytes < 1024) return bytes + ' B';
+  if (bytes < 1024*1024) return (bytes/1024).toFixed(1) + ' KB';
+  return (bytes/(1024*1024)).toFixed(1) + ' MB';
+}
+function toast(msg, type = 'info') {
+  const wrap = document.getElementById('toast-wrap');
+  const el = document.createElement('div');
+  const colors = { error: 'border-l-red-500', success: 'border-l-green-500', info: 'border-l-[#D97757]' };
+  el.className = `toast-anim bg-white border border-gray-200 border-l-4 ${colors[type]||colors.info} rounded-lg px-4 py-3 text-[13px] shadow-lg min-w-[240px] max-w-[320px]`;
+  el.textContent = msg;
+  wrap.appendChild(el);
+  setTimeout(() => el.remove(), 4000);
+}
+</script>
+</body>
+</html>

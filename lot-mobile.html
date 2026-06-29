@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Lot — Vehicle Finder</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@600;700&family=JetBrains+Mono:wght@500;600;700&display=swap');
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Inter',sans-serif;height:100vh;height:100dvh;display:flex;flex-direction:column;
+    background:#fff;color:#1a1a1a;overflow:hidden;-webkit-font-smoothing:antialiased}
+
+  /* ── Search bar ──────────────────────────────────────── */
+  #search-bar{
+    position:absolute;top:0;left:0;right:0;z-index:1000;
+    padding:12px 14px 10px;
+    background:linear-gradient(to bottom,#fff 70%,rgba(255,255,255,0));
+    pointer-events:none;
+  }
+  #search-wrap{
+    display:flex;align-items:center;gap:8px;
+    background:#fff;border:1px solid #e5e7eb;border-radius:12px;
+    padding:0 12px;height:46px;
+    box-shadow:0 2px 12px rgba(0,0,0,.08);
+    pointer-events:all;
+  }
+  #search-wrap svg{width:18px;height:18px;color:#9ca3af;flex-shrink:0}
+  #search-input{
+    flex:1;border:none;outline:none;background:transparent;
+    font-family:'Inter',sans-serif;font-size:15px;color:#1a1a1a;
+    min-width:0;
+  }
+  #search-input::placeholder{color:#9ca3af}
+  #search-clear{
+    width:24px;height:24px;border-radius:50%;border:none;
+    background:#f3f4f6;color:#9ca3af;font-size:14px;
+    cursor:pointer;display:none;align-items:center;justify-content:center;
+    flex-shrink:0;line-height:1;
+  }
+  #search-clear.vis{display:flex}
+
+  /* ── Status chip ─────────────────────────────────────── */
+  #status-chip{
+    position:absolute;top:70px;left:50%;transform:translateX(-50%);z-index:1000;
+    font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:600;
+    letter-spacing:.06em;
+    padding:4px 12px;border-radius:9999px;
+    background:#ecfdf5;color:#047857;
+    box-shadow:0 1px 6px rgba(0,0,0,.08);
+    transition:all .2s;
+  }
+  #status-chip.loading{background:#f3f4f6;color:#9ca3af}
+  #status-chip.error{background:#fef2f2;color:#dc2626}
+
+  /* ── Map ─────────────────────────────────────────────── */
+  #map{flex:1;width:100%}
+  .leaflet-container{background:#f8f8f5!important}
+
+  /* ── Cluster icons ───────────────────────────────────── */
+  .marker-cluster-small,.marker-cluster-medium,.marker-cluster-large{background:none!important}
+  .cluster-icon{
+    width:48px;height:48px;
+    display:flex;align-items:center;justify-content:center;
+    background:#fff;border:2.5px solid #1a1a1a;border-radius:50%;
+    box-shadow:0 2px 10px rgba(0,0,0,.15);
+    font-family:'JetBrains Mono',monospace;font-size:16px;font-weight:700;color:#1a1a1a;
+    position:relative;
+  }
+  .cluster-icon::after{
+    content:'';position:absolute;inset:3px;border:1.5px solid rgba(0,0,0,.08);border-radius:50%;
+  }
+  .cluster-ring{
+    position:absolute;inset:-4px;border:3px solid rgba(16,185,129,.25);border-radius:50%;
+  }
+
+  /* Spiderfier legs */
+  .leaflet-cluster-anim .leaflet-marker-icon{transition:transform .3s ease,opacity .3s}
+  svg.leaflet-cluster-spider-leg{stroke:#1a1a1a!important;stroke-opacity:.2!important;stroke-width:1.5!important}
+
+  /* ── Vehicle markers ─────────────────────────────────── */
+  .v-pin{
+    transform:translate(-50%,-100%);
+    display:flex;flex-direction:column;align-items:center;
+    cursor:pointer;
+    filter:drop-shadow(0 2px 4px rgba(0,0,0,.15));
+    transition:transform .15s;
+  }
+  .v-pin.highlight{transform:translate(-50%,-100%) scale(1.2);z-index:9000!important;
+    filter:drop-shadow(0 4px 12px rgba(0,0,0,.25))}
+  .v-pin.dim{opacity:.3;pointer-events:none}
+  .v-bubble{
+    display:flex;align-items:center;gap:5px;
+    background:#fff;border:2px solid #e5e7eb;
+    border-radius:10px;padding:6px 10px;
+    min-width:56px;justify-content:center;
+  }
+  .v-bubble .vdot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+  .v-bubble .vnum{font-family:'JetBrains Mono',monospace;font-size:17px;font-weight:700;color:#1a1a1a;line-height:1}
+  .v-tail{width:0;height:0;border-left:7px solid transparent;border-right:7px solid transparent;
+    border-top:7px solid #fff;margin-top:-1px}
+
+  /* ── Bottom sheet ────────────────────────────────────── */
+  #sheet{
+    position:absolute;bottom:0;left:0;right:0;z-index:1000;
+    background:#fff;border-top:1px solid #e5e7eb;
+    border-radius:16px 16px 0 0;
+    box-shadow:0 -4px 20px rgba(0,0,0,.08);
+    transform:translateY(100%);transition:transform .25s ease;
+    max-height:55vh;overflow:hidden;display:flex;flex-direction:column;
+  }
+  #sheet.open{transform:translateY(0)}
+  .sheet-handle{width:36px;height:4px;background:#d1d5db;border-radius:2px;margin:10px auto 0}
+  .sheet-body{padding:14px 18px 20px;overflow-y:auto;flex:1}
+  .sheet-name{font-family:'Inter Tight',sans-serif;font-size:22px;font-weight:700;color:#000}
+  .sheet-fleet{font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:600;
+    padding:2px 7px;border-radius:4px;letter-spacing:.05em;display:inline-block;margin-left:8px}
+  .sheet-fleet.DLX{background:#eff6ff;color:#2563eb}
+  .sheet-fleet.DMT{background:#fff7ed;color:#D97757}
+  .sheet-fleet.OT{background:#ecfdf5;color:#047857}
+  .sheet-group{font-family:'JetBrains Mono',monospace;font-size:10px;color:#9ca3af;
+    text-transform:uppercase;letter-spacing:.08em;margin-top:2px;margin-bottom:12px}
+  .sheet-row{display:flex;justify-content:space-between;align-items:baseline;
+    padding:6px 0;border-bottom:1px solid #f9fafb}
+  .sheet-row .sk{font-family:'JetBrains Mono',monospace;font-size:11px;color:#9ca3af}
+  .sheet-row .sv{font-family:'Inter',sans-serif;font-size:13px;font-weight:500;color:#1a1a1a}
+  .sheet-row .sv.green{color:#047857} .sheet-row .sv.amber{color:#b45309}
+  .sheet-addr{font-size:12px;color:#1a1a1a;line-height:1.4;margin-top:10px;padding-top:10px;
+    border-top:1px solid #f3f4f6;min-height:18px}
+  .sheet-addr.loading{color:#9ca3af;font-style:italic}
+  .sheet-copy{
+    margin-top:10px;width:100%;padding:10px;border:1px solid #e5e7eb;border-radius:8px;
+    background:#fff;font-family:'JetBrains Mono',monospace;font-size:11px;
+    color:#6b7280;cursor:pointer;text-align:center;transition:all .1s;
+  }
+  .sheet-copy:active{background:#f3f4f6}
+  .sheet-copy.copied{background:#ecfdf5;border-color:#a7f3d0;color:#047857}
+
+  /* ── Results list (search) ───────────────────────────── */
+  #results{
+    position:absolute;top:68px;left:14px;right:14px;z-index:1001;
+    background:#fff;border:1px solid #e5e7eb;border-radius:12px;
+    box-shadow:0 4px 20px rgba(0,0,0,.1);
+    max-height:50vh;overflow-y:auto;display:none;
+  }
+  #results.vis{display:block}
+  .res-item{
+    display:flex;align-items:center;gap:10px;
+    padding:12px 14px;border-bottom:1px solid #f9fafb;
+    cursor:pointer;transition:background .1s;
+  }
+  .res-item:last-child{border-bottom:none}
+  .res-item:active{background:#f3f4f6}
+  .res-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+  .res-num{font-family:'JetBrains Mono',monospace;font-size:16px;font-weight:700;color:#1a1a1a;width:50px}
+  .res-fleet{font-family:'JetBrains Mono',monospace;font-size:9px;font-weight:600;
+    padding:1px 5px;border-radius:3px;letter-spacing:.04em}
+  .res-fleet.DLX{background:#eff6ff;color:#2563eb}
+  .res-fleet.DMT{background:#fff7ed;color:#D97757}
+  .res-fleet.OT{background:#ecfdf5;color:#047857}
+  .res-status{margin-left:auto;font-family:'JetBrains Mono',monospace;font-size:10px;color:#9ca3af}
+  .res-status.lot{color:#047857} .res-status.moving{color:#b45309}
+  .res-empty{padding:20px;text-align:center;font-size:13px;color:#9ca3af}
+</style>
+</head>
+<body>
+
+<div id="map"></div>
+
+<!-- Search bar -->
+<div id="search-bar">
+  <div id="search-wrap">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+    <input id="search-input" type="text" placeholder="Search vehicle # or fleet…" autocomplete="off">
+    <button id="search-clear" onclick="clearSearch()">×</button>
+  </div>
+</div>
+
+<!-- Status chip -->
+<div id="status-chip" class="loading">Loading…</div>
+
+<!-- Search results dropdown -->
+<div id="results"></div>
+
+<!-- Bottom sheet for vehicle detail -->
+<div id="sheet">
+  <div class="sheet-handle"></div>
+  <div class="sheet-body">
+    <div style="display:flex;align-items:center">
+      <span class="sheet-name" id="sh-name">—</span>
+      <span class="sheet-fleet" id="sh-fleet">—</span>
+    </div>
+    <div class="sheet-group" id="sh-group">—</div>
+    <div class="sheet-row"><span class="sk">Status</span><span class="sv" id="sh-status">—</span></div>
+    <div class="sheet-row"><span class="sk">Speed</span><span class="sv" id="sh-speed">—</span></div>
+    <div class="sheet-row"><span class="sk">VIN</span><span class="sv" id="sh-vin" style="font-size:11px">—</span></div>
+    <div class="sheet-row"><span class="sk">Last GPS</span><span class="sv" id="sh-time" style="font-size:11px">—</span></div>
+    <div class="sheet-addr loading" id="sh-addr">—</div>
+    <button class="sheet-copy" id="sh-copy" onclick="copyAddr()">Copy Address</button>
+  </div>
+</div>
+
+<script>
+const PROXY='https://lytx-proxy.oregontaxieugene.workers.dev';
+const LOT_LAT=44.06008,LOT_LNG=-123.07620,LOT_R=130;
+
+let allVehicles=[],lotVehicles=[],markers={},selectedId=null,lastAddr='',lastCoords='';
+
+// ─── Map ─────────────────────────────────────────────────────────────────────
+const map=L.map('map',{zoomControl:false,attributionControl:false}).setView([LOT_LAT,LOT_LNG],18);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:20}).addTo(map);
+L.circle([LOT_LAT,LOT_LNG],{radius:LOT_R,color:'rgba(16,185,129,.4)',
+  fillColor:'rgba(16,185,129,.04)',fillOpacity:1,weight:1.5,dashArray:'6 4'}).addTo(map);
+
+// Cluster group with spiderfier
+const cluster=L.markerClusterGroup({
+  maxClusterRadius:35,
+  spiderfyOnMaxZoom:true,
+  showCoverageOnHover:false,
+  zoomToBoundsOnClick:true,
+  spiderfyDistanceMultiplier:2.2,
+  spiderLegPolylineOptions:{weight:1.5,color:'#1a1a1a',opacity:.2},
+  iconCreateFunction:function(c){
+    const n=c.getChildCount();
+    return L.divIcon({
+      html:`<div class="cluster-icon"><div class="cluster-ring"></div>${n}</div>`,
+      className:'',iconSize:[48,48],iconAnchor:[24,24]
+    });
+  }
+});
+map.addLayer(cluster);
+
+map.on('click',()=>closeSheet());
+
+// ─── Geo ─────────────────────────────────────────────────────────────────────
+function hav(a,b,c,d){const R=6371000,x=(c-a)*Math.PI/180,y=(d-b)*Math.PI/180,
+  q=Math.sin(x/2)**2+Math.cos(a*Math.PI/180)*Math.cos(c*Math.PI/180)*Math.sin(y/2)**2;
+  return R*2*Math.atan2(Math.sqrt(q),Math.sqrt(1-q));}
+function inLot(v){const p=v.points?.[0];if(!p)return false;
+  return hav(p.latitude,p.longitude,LOT_LAT,LOT_LNG)<=LOT_R&&p.speedms<1;}
+function stsOf(v){
+  const p=v.points?.[0];if(!p)return{l:'No Signal',c:'off',clr:'#9ca3af'};
+  if(inLot(v))return{l:'In Lot',c:'lot',clr:'#10b981'};
+  if(p.speedms>0.5)return{l:'Moving',c:'moving',clr:'#d97706'};
+  return{l:'Parked',c:'parked',clr:'#2563eb'};
+}
+
+// ─── Fetch ───────────────────────────────────────────────────────────────────
+async function load(){
+  chip('loading','Loading…');
+  try{
+    const res=await fetch(`${PROXY}/gps`);if(!res.ok)throw 0;
+    allVehicles=(await res.json()).data||[];
+    lotVehicles=allVehicles.filter(inLot);
+    render();
+    chip('live',`${lotVehicles.length} in lot · ${new Date().toLocaleTimeString([],{hour:'numeric',minute:'2-digit'})}`);
+  }catch{chip('error','Connection error');}
+}
+
+// ─── Render ──────────────────────────────────────────────────────────────────
+function render(){
+  // Remove markers no longer in lot
+  const ids=new Set(lotVehicles.map(v=>v.vehicleId));
+  Object.keys(markers).forEach(id=>{
+    if(!ids.has(id)){cluster.removeLayer(markers[id]);delete markers[id];}
+  });
+
+  lotVehicles.forEach(v=>{
+    const p=v.points?.[0];if(!p)return;
+    const s=stsOf(v);
+    const sel=selectedId===v.vehicleId;
+    const html=`<div class="v-pin ${sel?'highlight':''}">
+      <div class="v-bubble" style="border-color:${s.clr}">
+        <span class="vdot" style="background:${s.clr}"></span>
+        <span class="vnum">${v.vehicleName}</span>
+      </div>
+      <div class="v-tail"></div>
+    </div>`;
+    const icon=L.divIcon({html,className:'',iconSize:[0,0],iconAnchor:[0,0]});
+
+    if(markers[v.vehicleId]){
+      markers[v.vehicleId].setLatLng([p.latitude,p.longitude]);
+      markers[v.vehicleId].setIcon(icon);
+    }else{
+      const m=L.marker([p.latitude,p.longitude],{icon,zIndexOffset:sel?9000:100});
+      m.on('click',()=>selectVehicle(v));
+      markers[v.vehicleId]=m;
+      cluster.addLayer(m);
+    }
+  });
+}
+
+// ─── Select ──────────────────────────────────────────────────────────────────
+function selectVehicle(v){
+  selectedId=v.vehicleId;
+  const p=v.points?.[0]||{};
+  const s=stsOf(v);
+  const mph=p.speedms?+(p.speedms*2.23694).toFixed(1):0;
+  document.getElementById('sh-name').textContent=v.vehicleName;
+  const fe=document.getElementById('sh-fleet');fe.textContent=v.fleet;fe.className='sheet-fleet '+(v.fleet||'');
+  document.getElementById('sh-group').textContent=v.groupName||'';
+  const se=document.getElementById('sh-status');se.textContent=s.l;se.className='sv'+(s.c==='lot'?' green':(s.c==='moving'?' amber':''));
+  document.getElementById('sh-speed').textContent=mph>0.5?mph+' mph':'0 mph';
+  document.getElementById('sh-vin').textContent=v.vin||'—';
+  document.getElementById('sh-time').textContent=p.timeInUtc?new Date(p.timeInUtc).toLocaleTimeString([],{hour:'numeric',minute:'2-digit'}):'—';
+  document.getElementById('sheet').classList.add('open');
+
+  // If the marker is inside a cluster, zoom to it / spiderfy
+  const marker=markers[v.vehicleId];
+  if(marker){
+    const parent=cluster.getVisibleParent(marker);
+    if(parent&&parent!==marker){
+      // Marker is clustered — zoom to reveal it
+      cluster.zoomToShowLayer(marker,()=>{
+        const offset=window.innerHeight*0.15/111320;
+        map.panTo([p.latitude-offset,p.longitude],{animate:true,duration:.4});
+      });
+    }else{
+      const offset=window.innerHeight*0.15/111320;
+      map.flyTo([p.latitude-offset,p.longitude],Math.max(map.getZoom(),19),{animate:true,duration:.5});
+    }
+  }
+
+  reverseGeo(p.latitude,p.longitude);
+  render();
+  closeResults();
+}
+function closeSheet(){
+  document.getElementById('sheet').classList.remove('open');
+  selectedId=null;render();
+}
+
+// ─── Reverse geocode ─────────────────────────────────────────────────────────
+async function reverseGeo(lat,lng){
+  const el=document.getElementById('sh-addr');
+  el.className='sheet-addr loading';el.textContent='Looking up address…';
+  lastCoords=`${lat.toFixed(6)}, ${lng.toFixed(6)}`;
+  try{
+    const res=await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&addressdetails=1`,
+      {headers:{'User-Agent':'OregonTaxi-LotMobile/1.0'}});
+    const d=await res.json();const a=d.address||{};
+    const parts=[a.house_number,a.road].filter(Boolean);
+    const city=a.city||a.town||a.village||'';
+    lastAddr=[parts.join(' '),city,a.state||'',a.postcode||''].filter(Boolean).join(', ');
+    el.className='sheet-addr';el.textContent=lastAddr||d.display_name||lastCoords;
+  }catch{lastAddr=lastCoords;el.className='sheet-addr';el.textContent='Address unavailable';}
+}
+function copyAddr(){
+  const text=lastAddr||lastCoords;
+  navigator.clipboard.writeText(text).then(()=>{
+    const b=document.getElementById('sh-copy');
+    b.classList.add('copied');b.textContent='✓ Copied';
+    setTimeout(()=>{b.classList.remove('copied');b.textContent='Copy Address';},1500);
+  });
+}
+
+// ─── Search ──────────────────────────────────────────────────────────────────
+const si=document.getElementById('search-input');
+const sr=document.getElementById('results');
+const sc=document.getElementById('search-clear');
+
+si.addEventListener('input',()=>{
+  const q=si.value.trim().toLowerCase();
+  sc.classList.toggle('vis',q.length>0);
+  if(!q){closeResults();return;}
+  // Search lot vehicles by number or fleet
+  const hits=lotVehicles.filter(v=>{
+    const name=(v.vehicleName||'').toLowerCase();
+    const fleet=(v.fleet||'').toLowerCase();
+    return name.includes(q)||fleet.includes(q);
+  });
+  if(!hits.length){
+    sr.innerHTML='<div class="res-empty">No vehicles matching "'+q+'"</div>';
+  }else{
+    sr.innerHTML=hits.map(v=>{
+      const s=stsOf(v);
+      return `<div class="res-item" onclick="pickResult('${v.vehicleId}')">
+        <span class="res-dot" style="background:${s.clr}"></span>
+        <span class="res-num">${v.vehicleName}</span>
+        <span class="res-fleet ${v.fleet}">${v.fleet}</span>
+        <span class="res-status ${s.c}">${s.l}</span>
+      </div>`;
+    }).join('');
+  }
+  sr.classList.add('vis');
+});
+si.addEventListener('focus',()=>{if(si.value.trim())si.dispatchEvent(new Event('input'));});
+
+function pickResult(vid){
+  const v=lotVehicles.find(x=>x.vehicleId===vid);
+  if(v)selectVehicle(v);
+  si.value='';sc.classList.remove('vis');closeResults();
+}
+function clearSearch(){si.value='';sc.classList.remove('vis');closeResults();si.focus();}
+function closeResults(){sr.classList.remove('vis');}
+// Close results on map tap
+map.on('click',closeResults);
+
+// ─── Status chip ─────────────────────────────────────────────────────────────
+function chip(s,m){
+  const c=document.getElementById('status-chip');
+  c.className=s==='live'?'':'status-chip '+(s==='error'?'error':'loading');
+  // Add base class back
+  c.className=''; // reset
+  if(s==='live')c.style.cssText='background:#ecfdf5;color:#047857';
+  else if(s==='error')c.style.cssText='background:#fef2f2;color:#dc2626';
+  else c.style.cssText='background:#f3f4f6;color:#9ca3af';
+  c.textContent=m;
+}
+
+// ─── Go ──────────────────────────────────────────────────────────────────────
+load();setInterval(load,60000);
+</script>
+</body>
+</html>

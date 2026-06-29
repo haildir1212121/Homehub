@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>🔧 Fleetio Fault Feed</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;800&family=Outfit:wght@500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg:#08090a; --bg-card:#111316; --bg-head:#0d0e10; --border:#1e2228;
+    --text:#e2e4e9; --muted:#6b7280; --orange:#f97316; --green:#4ade80;
+    --red:#ef4444; --amber:#f59e0b; --radius:8px;
+  }
+  body { background:var(--bg); color:var(--text); font-family:'Outfit',sans-serif; font-size:14px; display:flex; flex-direction:column; height:100vh; overflow:hidden; }
+  header { background:var(--bg-head); padding:.65rem 1rem; border-bottom:1px solid var(--border); display:flex; align-items:center; gap:.6rem; flex-shrink:0; }
+  header h1 { font-family:'JetBrains Mono',monospace; font-size:.72rem; font-weight:800; text-transform:uppercase; letter-spacing:2px; color:var(--orange); flex:1; }
+  .live-dot { width:7px; height:7px; border-radius:50%; background:var(--green); display:inline-block; margin-right:5px; animation:pulse 2s infinite; }
+  .live-dot.dead { background:var(--red); animation:none; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.2} }
+  .live-label { font-size:.65rem; color:var(--muted); font-family:'JetBrains Mono',monospace; display:flex; align-items:center; }
+  .sync-btn { background:none; border:1px solid var(--border); border-radius:5px; color:var(--muted); cursor:pointer; padding:3px 9px; font-size:.78rem; transition:all .15s; font-family:'JetBrains Mono',monospace; }
+  .sync-btn:hover { border-color:var(--orange); color:var(--orange); }
+  #countBar { padding:.3rem 1rem; font-size:.67rem; color:var(--muted); font-family:'JetBrains Mono',monospace; border-bottom:1px solid var(--border); flex-shrink:0; display:flex; justify-content:space-between; align-items:center; }
+  #searchBar { padding:.5rem .75rem; border-bottom:1px solid var(--border); flex-shrink:0; }
+  #searchInput { width:100%; padding:.4rem .65rem; background:var(--bg-card); border:1px solid var(--border); border-radius:6px; color:var(--text); font-family:'JetBrains Mono',monospace; font-size:.78rem; outline:none; transition:border-color .15s; }
+  #searchInput:focus { border-color:var(--orange); }
+  #feed { flex:1; overflow-y:auto; padding:.6rem .75rem; scrollbar-width:thin; scrollbar-color:#2a2f38 transparent; }
+  .fault-card { background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius); padding:.75rem .85rem; margin-bottom:.5rem; transition:border-color .15s; animation:fadeIn .3s ease; }
+  @keyframes fadeIn { from{opacity:0;transform:translateY(-4px)} to{opacity:1;transform:none} }
+  .fault-card.urgent { border-left:3px solid var(--red); }
+  .fault-card.high   { border-left:3px solid var(--amber); }
+  .fault-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:.4rem; }
+  .fault-vehicle { font-family:'JetBrains Mono',monospace; font-weight:800; font-size:.85rem; color:var(--orange); }
+  .fault-date { font-size:.65rem; color:var(--muted); font-family:'JetBrains Mono',monospace; }
+  .fault-desc { font-size:.82rem; color:var(--text); line-height:1.45; margin-bottom:.35rem; }
+  .fault-detail { font-size:.72rem; color:var(--muted); line-height:1.4; margin-bottom:.35rem; }
+  .fault-meta { display:flex; align-items:center; gap:.5rem; flex-wrap:wrap; margin-bottom:.45rem; }
+  .prio-badge { font-size:.63rem; font-family:'JetBrains Mono',monospace; font-weight:700; text-transform:uppercase; padding:2px 7px; border-radius:3px; }
+  .prio-urgent { background:rgba(239,68,68,.18); color:var(--red); }
+  .prio-high   { background:rgba(245,158,11,.18); color:var(--amber); }
+  .prio-normal { background:rgba(255,255,255,.06); color:var(--muted); }
+  .fault-reporter { font-size:.68rem; color:var(--muted); }
+  .fault-odo { font-family:'JetBrains Mono',monospace; font-size:.68rem; font-weight:700; color:#fb923c; }
+  .fault-actions { display:flex; gap:.5rem; }
+  .btn-add { flex:1; padding:.35rem .5rem; border:none; border-radius:5px; background:rgba(74,144,217,.15); color:#4A90D9; font-weight:700; font-size:.7rem; text-transform:uppercase; letter-spacing:.5px; cursor:pointer; font-family:'JetBrains Mono',monospace; transition:all .15s; }
+  .btn-add:hover { background:rgba(74,144,217,.3); }
+  .btn-dismiss { flex:1; padding:.35rem .5rem; border:none; border-radius:5px; background:rgba(255,255,255,.05); color:var(--muted); font-weight:700; font-size:.7rem; text-transform:uppercase; letter-spacing:.5px; cursor:pointer; font-family:'JetBrains Mono',monospace; transition:all .15s; }
+  .btn-dismiss:hover { background:rgba(239,68,68,.15); color:var(--red); }
+  .new-badge { display:inline-block; background:var(--orange); color:#fff; font-size:.6rem; font-weight:800; font-family:'JetBrains Mono',monospace; padding:1px 5px; border-radius:3px; text-transform:uppercase; margin-left:6px; animation:flash 1s ease 3; }
+  @keyframes flash { 0%,100%{opacity:1} 50%{opacity:.2} }
+  .empty { text-align:center; padding:3rem 1rem; color:var(--muted); font-size:.8rem; line-height:2.2; }
+  .empty .icon { font-size:2rem; display:block; margin-bottom:.5rem; }
+</style>
+    <link rel="stylesheet" href="theme.css">
+</head>
+<body>
+
+<header>
+  <h1>🔧 Fleetio Fault Feed</h1>
+  <span class="live-label"><span class="live-dot dead" id="liveDot"></span>Connecting…</span>
+  <button class="sync-btn" onclick="loadFaults()">↻ Refresh</button>
+</header>
+<div id="countBar">
+  <span id="countText">Loading…</span>
+  <span id="lastSync"></span>
+</div>
+<div id="searchBar">
+  <input type="text" id="searchInput" placeholder="Filter by vehicle, issue, reporter…" oninput="filterFeed()">
+</div>
+<div id="feed"></div>
+
+<script>
+// ── Config ──────────────────────────────────────────────────
+const SUPABASE_URL  = 'https://mdutrtmdjodabggirntb.supabase.co';
+const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kdXRydG1kam9kYWJnZ2lybnRiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ5MDk3MzQsImV4cCI6MjA5MDQ4NTczNH0.GlrbsjnkBSwhnguBQUCb418NxvRO02PhXhBJZ69xTi4';
+const SB_HEADERS = {
+  'apikey': SUPABASE_ANON,
+  'Authorization': 'Bearer ' + SUPABASE_ANON,
+  'Content-Type': 'application/json',
+};
+
+// ── Helpers ─────────────────────────────────────────────────
+const PLACEHOLDER_RE = /^do you have additional notes\??$|^additional notes\??$/i;
+function cleanLabel(s) {
+  if (!s) return '';
+  const stripped = s.replace(/^\[\w[^\]]*\]\s*/i, '').trim();
+  return (!stripped || PLACEHOLDER_RE.test(stripped)) ? '' : stripped;
+}
+function parseDesc(raw) {
+  if (!raw) return '';
+  const m1 = raw.match(/generated by the failed inspection item\s*"([^"]+)"/i);
+  if (m1) return m1[1].trim();
+  const m2 = raw.match(/generated by the rejection of issue\s+#?\d+\s+(?:on the\s+)?(.+?)\s+submitted by/i);
+  if (m2) return m2[1].trim();
+  return raw;
+}
+function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function fmtDate(ts) {
+  if (!ts) return '';
+  return new Date(ts).toLocaleDateString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'});
+}
+function setLive(alive) {
+  const dot = document.getElementById('liveDot');
+  dot.className = 'live-dot' + (alive ? '' : ' dead');
+  dot.nextSibling.textContent = alive ? 'Live' : 'Offline';
+}
+
+// ── Data ─────────────────────────────────────────────────────
+let knownIds = new Set();
+const NOISE = [
+  /generated by the rejection of resolved issue/i,
+  /^do you have additional notes\??$/i,
+];
+
+async function loadFaults(isRealtime) {
+  try {
+    const res = await fetch(
+      SUPABASE_URL + '/rest/v1/fleetio_faults?status=eq.pending&order=reported_at.desc',
+      { headers: SB_HEADERS }
+    );
+    if (!res.ok) throw new Error('HTTP ' + res.status + ': ' + await res.text());
+    const data = await res.json();
+
+    const visible = data.filter(f => {
+      const sum = (f.summary||'').trim();
+      const dsc = (f.description||'').trim();
+      return !NOISE.some(re => re.test(sum) || re.test(dsc));
+    });
+
+    renderFaults(visible, !!isRealtime);
+    setLive(true);
+  } catch(err) {
+    console.error('loadFaults error:', err);
+    document.getElementById('countText').textContent = 'Error loading';
+    document.getElementById('feed').innerHTML =
+      '<div class="empty"><span class="icon">⚠</span>' + esc(err.message) + '</div>';
+    setLive(false);
+  }
+}
+
+function renderFaults(faults, isRealtime) {
+  const feed = document.getElementById('feed');
+  document.getElementById('lastSync').textContent =
+    'Updated ' + new Date().toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'});
+  document.getElementById('countText').textContent =
+    faults.length === 0 ? 'No pending faults' :
+    faults.length + ' pending fault' + (faults.length !== 1 ? 's' : '');
+
+  if (faults.length === 0) {
+    feed.innerHTML = '<div class="empty"><span class="icon">✓</span>No pending faults<br><span style="font-size:.72rem">New faults appear here automatically</span></div>';
+    knownIds = new Set();
+    return;
+  }
+
+  const newIds = new Set(faults.map(f => String(f.id)));
+  const freshIds = isRealtime ? [...newIds].filter(id => !knownIds.has(id)) : [];
+  knownIds = newIds;
+
+  feed.innerHTML = faults.map(f => {
+    const prioClass  = f.priority === 'Urgent' ? 'urgent' : f.priority === 'High' ? 'high' : '';
+    const badgeClass = f.priority === 'Urgent' ? 'prio-urgent' : f.priority === 'High' ? 'prio-high' : 'prio-normal';
+    const vehicle    = esc(f.vehicle_name || f.vehicle_id || 'Unknown');
+    const isNew      = freshIds.includes(String(f.id));
+    const parsedDesc = parseDesc(f.description || '');
+    const title      = cleanLabel(f.summary) || parsedDesc || 'No description';
+    const detail     = f.description && !/^generated by/i.test(f.description) && f.description !== (f.summary||'')
+      ? esc(f.description) : '';
+    const id         = esc(String(f.id));
+
+    return '<div class="fault-card ' + prioClass + '" id="fc-' + id + '">' +
+      '<div class="fault-header">' +
+        '<span class="fault-vehicle">' + vehicle + (isNew ? '<span class="new-badge">New</span>' : '') + '</span>' +
+        '<span class="fault-date">' + esc(fmtDate(f.reported_at)) + '</span>' +
+      '</div>' +
+      '<div class="fault-desc">' + esc(title) + '</div>' +
+      (detail ? '<div class="fault-detail">' + detail + '</div>' : '') +
+      '<div class="fault-meta">' +
+        '<span class="prio-badge ' + badgeClass + '">' + esc(f.priority || 'Normal') + '</span>' +
+        (f.reported_by ? '<span class="fault-reporter">&#128100; ' + esc(f.reported_by) + '</span>' : '') +
+        (f.meter_value ? '<span class="fault-odo">&#128290; ' + parseInt(f.meter_value).toLocaleString() + ' mi</span>' : '') +
+      '</div>' +
+      '<div class="fault-actions">' +
+        '<button class="btn-add"     onclick="addToBoard(\'' + id + '\')">&#10003; Add to Board</button>' +
+        '<button class="btn-dismiss" onclick="dismissFault(\'' + id + '\')">&#10007; Dismiss</button>' +
+      '</div>' +
+    '</div>';
+  }).join('');
+}
+
+// ── Real-time via polling (no WebSocket dependency) ──────────
+setInterval(loadFaults, 30000);
+
+// ── Actions ──────────────────────────────────────────────────
+function addToBoard(faultId) {
+  if (!window.opener || window.opener.closed) {
+    alert('Main Repair Tracker window is not open.');
+    return;
+  }
+  try {
+    window.opener.acceptFleetioFault(faultId);
+    const card = document.getElementById('fc-' + faultId);
+    if (card) { card.style.opacity = '.35'; card.style.pointerEvents = 'none'; }
+  } catch(e) { alert('Error: ' + e.message); }
+}
+
+function dismissFault(faultId) {
+  if (!window.opener || window.opener.closed) {
+    alert('Main Repair Tracker window is not open.');
+    return;
+  }
+  try {
+    window.opener.dismissFleetioFault(faultId);
+    const card = document.getElementById('fc-' + faultId);
+    if (card) card.remove();
+    filterFeed();
+  } catch(e) { alert('Error: ' + e.message); }
+}
+
+function filterFeed() {
+  const q = (document.getElementById('searchInput').value || '').trim().toLowerCase();
+  const cards = document.querySelectorAll('#feed .fault-card');
+  let visible = 0;
+  cards.forEach(card => {
+    const show = !q || card.textContent.toLowerCase().includes(q);
+    card.style.display = show ? '' : 'none';
+    if (show) visible++;
+  });
+  document.getElementById('countText').textContent = q
+    ? visible + ' match' + (visible !== 1 ? 'es' : '')
+    : (cards.length === 0 ? 'No pending faults' : cards.length + ' pending fault' + (cards.length !== 1 ? 's' : ''));
+}
+
+// ── Init ─────────────────────────────────────────────────────
+loadFaults();
+</script>
+</body>
+</html>

@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>DMT Face Sheet Scanner</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://unpkg.com/@phosphor-icons/web"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Inter+Tight:wght@500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; }
+  body { font-family: 'Inter', sans-serif; }
+  .display-font { font-family: 'Inter Tight', sans-serif; }
+  .mono-font { font-family: 'JetBrains Mono', monospace; }
+
+  /* Views */
+  .view { display: none; min-height: 100vh; }
+  .view.active { display: flex; }
+
+  /* Drop zone */
+  .drop-zone-active { border-color: #D97757 !important; background: rgba(217,119,87,0.04) !important; }
+
+  /* Progress */
+  .progress-fill { transition: width 0.3s ease; }
+
+  /* Spinner */
+  .spinner {
+    display: inline-block; width: 15px; height: 15px;
+    border: 2px solid rgba(255,255,255,0.3); border-top-color: white;
+    border-radius: 50%; animation: spin 0.6s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* Toast */
+  @keyframes slideIn { from { opacity:0; transform:translateX(16px); } to { opacity:1; transform:translateX(0); } }
+  .toast-anim { animation: slideIn 0.2s ease; }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 5px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: #e5e7eb; border-radius: 99px; }
+</style>
+</head>
+<body class="antialiased bg-white text-[#1a1a1a]">
+
+<!-- ── LOGIN VIEW ── -->
+<div class="view active" id="login-view">
+  <!-- Left panel -->
+  <aside class="hidden lg:flex flex-col justify-between bg-black text-white p-10 w-[52%] relative overflow-hidden">
+    <div class="flex items-center gap-3">
+      <div class="w-7 h-7 bg-white text-black rounded flex items-center justify-center font-bold text-xs">FS</div>
+      <span class="font-semibold text-sm tracking-tight">DMT Face Sheet Scanner</span>
+    </div>
+    <div class="display-font text-[4vw] font-semibold leading-[0.92] tracking-tighter">
+      Face sheets,<br/>filed <em class="not-italic text-[#D97757]">securely.</em>
+    </div>
+    <div class="grid grid-cols-2 gap-y-2 gap-x-6 mono-font text-[10px] tracking-[0.12em] uppercase text-gray-400">
+      <span>System</span><b class="text-white font-medium">HIPAA-Compliant Storage</b>
+      <span>Access</span><b class="text-white font-medium">@oregontaxi.com accounts</b>
+    </div>
+  </aside>
+
+  <!-- Right panel (login form) -->
+  <div class="flex-1 flex items-center justify-center p-8 bg-white">
+    <div class="w-full max-w-[360px]">
+      <div class="mb-8">
+        <div class="mono-font text-[10px] tracking-[0.14em] text-gray-500 uppercase mb-2">Face Sheet Scanner · 001</div>
+        <h2 class="display-font text-3xl font-semibold text-black tracking-tight">Welcome back.</h2>
+        <p class="text-[13px] text-gray-500 mt-1">Sign in with your @oregontaxi.com account.</p>
+      </div>
+
+      <div class="space-y-4">
+        <div>
+          <label class="block mono-font text-[10px] tracking-widest text-gray-500 uppercase mb-1.5">Email Address</label>
+          <input type="email" id="login-email" placeholder="you@oregontaxi.com" autocomplete="email"
+            class="w-full rounded-md border border-gray-300 p-2.5 text-[13px] focus:outline-none focus:border-black transition-colors" />
+        </div>
+        <div>
+          <label class="block mono-font text-[10px] tracking-widest text-gray-500 uppercase mb-1.5">Password</label>
+          <input type="password" id="login-password" placeholder="••••••••" autocomplete="current-password"
+            class="w-full rounded-md border border-gray-300 p-2.5 text-[13px] focus:outline-none focus:border-black transition-colors" />
+        </div>
+        <button id="login-btn" onclick="doLogin()"
+          class="w-full bg-black hover:bg-[#222] text-white font-semibold py-2.5 rounded-md transition-colors flex justify-center items-center gap-2 mt-2">
+          <span id="login-btn-text">Sign In</span>
+          <i class="ph-bold ph-arrow-right"></i>
+        </button>
+        <div id="login-err" class="hidden text-[12px] text-red-500 mono-font text-center pt-1"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── UPLOAD VIEW ── -->
+<div class="view flex-col" id="upload-view">
+
+  <!-- Topbar -->
+  <header class="flex items-center justify-between px-5 h-[60px] border-b border-gray-200 bg-white sticky top-0 z-20 flex-shrink-0">
+    <div class="flex items-center gap-3">
+      <div class="w-7 h-7 bg-black text-white rounded flex items-center justify-center font-bold text-[11px]">FS</div>
+      <span class="display-font text-[15px] font-semibold tracking-tight">Face Sheet Scanner</span>
+      <span class="mono-font text-[10px] tracking-[0.12em] uppercase text-gray-400 hidden sm:block">· DMT / Secure Upload</span>
+    </div>
+    <div class="flex items-center gap-2">
+      <div class="hidden sm:flex items-center gap-1.5 bg-gray-50 border border-gray-200 rounded-full px-3 py-1.5">
+        <i class="ph-bold ph-user text-[11px] text-gray-400"></i>
+        <span class="mono-font text-[10px] text-gray-600" id="user-email-display">—</span>
+      </div>
+      <button onclick="doSignOut()"
+        class="flex items-center gap-1.5 border border-gray-200 rounded-md px-3 py-1.5 text-[12px] text-gray-500 hover:text-black hover:border-gray-400 transition-colors">
+        <i class="ph-bold ph-sign-out text-[12px]"></i>
+        <span>Sign out</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- Body -->
+  <main class="flex-1 overflow-y-auto">
+    <div class="max-w-[620px] mx-auto px-5 py-8 w-full">
+
+      <!-- Section label -->
+      <div class="mono-font text-[10px] tracking-[0.14em] uppercase text-gray-400 mb-3">Upload Face Sheet</div>
+
+      <!-- Drop zone -->
+      <div id="drop-zone"
+        class="border-2 border-dashed border-gray-200 rounded-xl bg-gray-50 p-12 text-center cursor-pointer transition-all relative mb-5 hover:border-[#D97757] hover:bg-orange-50/40">
+        <input type="file" id="file-input" accept="image/*,application/pdf" onchange="onFileSelected(this)"
+          class="absolute inset-0 opacity-0 cursor-pointer w-full h-full" />
+        <i class="ph-bold ph-file-arrow-up text-[40px] text-gray-300 mb-3 block"></i>
+        <div class="text-[15px] font-semibold text-black mb-1">Drop face sheet here</div>
+        <div class="text-[12px] text-gray-400 mono-font">JPG · PNG · PDF &nbsp;·&nbsp; Max 10 MB</div>
+      </div>
+
+      <!-- Preview -->
+      <div id="preview-wrap" class="hidden mb-5">
+        <div class="mono-font text-[10px] tracking-[0.14em] uppercase text-gray-400 mb-2">Selected File</div>
+        <div class="border border-gray-200 rounded-xl overflow-hidden bg-white">
+          <div class="flex items-center justify-between px-4 py-3 border-b border-gray-100">
+            <div class="flex items-center gap-2">
+              <i class="ph-bold ph-paperclip text-[13px] text-[#D97757]"></i>
+              <span class="mono-font text-[12px] text-[#D97757] truncate max-w-[260px]" id="preview-filename">—</span>
+            </div>
+            <button onclick="clearFile()" class="text-gray-300 hover:text-red-500 transition-colors p-1 rounded">
+              <i class="ph-bold ph-x text-[14px]"></i>
+            </button>
+          </div>
+          <img id="preview-img" class="w-full max-h-[280px] object-contain bg-gray-50 block" alt="Preview" style="display:none;" />
+          <div id="preview-pdf-note" class="hidden py-8 text-center mono-font text-[12px] text-gray-400 bg-gray-50">
+            <i class="ph-bold ph-file-pdf text-[32px] text-gray-300 mb-2 block"></i>PDF ready to upload
+          </div>
+        </div>
+      </div>
+
+      <!-- Meta fields -->
+      <div id="meta-fields" class="hidden">
+        <div class="mono-font text-[10px] tracking-[0.14em] uppercase text-gray-400 mb-3 mt-1">Trip Info <span class="text-gray-300">(optional)</span></div>
+        <div class="grid grid-cols-2 gap-3 mb-3">
+          <div>
+            <label class="block mono-font text-[10px] tracking-widest text-gray-500 uppercase mb-1.5">Patient Name</label>
+            <input type="text" id="meta-patient" placeholder="Last, First"
+              class="w-full rounded-md border border-gray-200 p-2.5 text-[13px] focus:outline-none focus:border-black transition-colors" />
+          </div>
+          <div>
+            <label class="block mono-font text-[10px] tracking-widest text-gray-500 uppercase mb-1.5">Trip Date</label>
+            <input type="date" id="meta-date"
+              class="w-full rounded-md border border-gray-200 p-2.5 text-[13px] focus:outline-none focus:border-black transition-colors" />
+          </div>
+          <div>
+            <label class="block mono-font text-[10px] tracking-widest text-gray-500 uppercase mb-1.5">Driver</label>
+            <input type="text" id="meta-driver" placeholder="Driver name"
+              class="w-full rounded-md border border-gray-200 p-2.5 text-[13px] focus:outline-none focus:border-black transition-colors" />
+          </div>
+          <div>
+            <label class="block mono-font text-[10px] tracking-widest text-gray-500 uppercase mb-1.5">Vehicle #</label>
+            <input type="text" id="meta-vehicle" placeholder="e.g. 412"
+              class="w-full rounded-md border border-gray-200 p-2.5 text-[13px] focus:outline-none focus:border-black transition-colors" />
+          </div>
+          <div class="col-span-2">
+            <label class="block mono-font text-[10px] tracking-widest text-gray-500 uppercase mb-1.5">Notes</label>
+            <input type="text" id="meta-notes" placeholder="Optional notes"
+              class="w-full rounded-md border border-gray-200 p-2.5 text-[13px] focus:outline-none focus:border-black transition-colors" />
+          </div>
+        </div>
+
+        <button id="submit-btn" onclick="doUpload()"
+          class="w-full bg-black hover:bg-[#222] text-white font-semibold py-3 rounded-md transition-colors flex items-center justify-center gap-2 text-[14px]">
+          <i class="ph-bold ph-upload-simple"></i>
+          <span id="submit-btn-text">Upload Face Sheet</span>
+        </button>
+
+        <!-- Progress -->
+        <div id="progress-wrap" class="hidden mt-3">
+          <div class="h-[3px] bg-gray-100 rounded-full overflow-hidden">
+            <div id="progress-fill" class="h-full bg-[#D97757] rounded-full progress-fill w-0"></div>
+          </div>
+          <div class="mono-font text-[10px] text-gray-400 mt-1.5" id="progress-label">Uploading…</div>
+        </div>
+      </div>
+
+      <!-- Recent uploads -->
+      <div class="mt-10">
+        <div class="mono-font text-[10px] tracking-[0.14em] uppercase text-gray-400 mb-3">Recent Uploads</div>
+        <div id="recent-list" class="flex flex-col gap-2"></div>
+      </div>
+
+    </div>
+  </main>
+</div>
+
+<!-- Toast container -->
+<div id="toast-wrap" class="fixed bottom-5 right-5 flex flex-col gap-2 z-50"></div>
+
+<script>
+const SUPABASE_URL = 'https://mdutrtmdjodabggirntb.supabase.co';
+const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kdXRydG1kam9kYWJnZ2lybnRiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ5MDk3MzQsImV4cCI6MjA5MDQ4NTczNH0.GlrbsjnkBSwhnguBQUCb418NxvRO02PhXhBJZ69xTi4';
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+const BUCKET = 'face-sheets';
+
+let selectedFile = null;
+let currentUser = null;
+
+(async () => {
+  const { data: { session } } = await sb.auth.getSession();
+  if (session) { currentUser = session.user; showUpload(); }
+  sb.auth.onAuthStateChange((_e, session) => {
+    if (session) { currentUser = session.user; showUpload(); }
+    else { currentUser = null; showLogin(); }
+  });
+})();
+
+function showLogin() {
+  document.getElementById('login-view').classList.add('active');
+  document.getElementById('upload-view').classList.remove('active');
+}
+function showUpload() {
+  document.getElementById('login-view').classList.remove('active');
+  document.getElementById('upload-view').classList.add('active');
+  document.getElementById('user-email-display').textContent = currentUser?.email ?? '—';
+  loadRecent();
+}
+
+async function doLogin() {
+  const email = document.getElementById('login-email').value.trim();
+  const pw = document.getElementById('login-password').value;
+  const btn = document.getElementById('login-btn');
+  const err = document.getElementById('login-err');
+  err.classList.add('hidden');
+  if (!email || !pw) { showErr('Email and password required.'); return; }
+  btn.disabled = true;
+  document.getElementById('login-btn-text').innerHTML = '<span class="spinner"></span>';
+  const { error } = await sb.auth.signInWithPassword({ email, password: pw });
+  btn.disabled = false;
+  document.getElementById('login-btn-text').textContent = 'Sign In';
+  if (error) showErr(error.message);
+  function showErr(msg) { err.textContent = msg; err.classList.remove('hidden'); }
+}
+
+async function doSignOut() {
+  await sb.auth.signOut();
+  clearFile();
+}
+
+function onFileSelected(input) {
+  const file = input.files[0];
+  if (!file) return;
+  if (file.size > 10 * 1024 * 1024) { toast('File too large (max 10 MB)', 'error'); return; }
+  selectedFile = file;
+  document.getElementById('preview-filename').textContent = file.name;
+  document.getElementById('drop-zone').classList.add('hidden');
+  document.getElementById('preview-wrap').classList.remove('hidden');
+  document.getElementById('meta-fields').classList.remove('hidden');
+  const img = document.getElementById('preview-img');
+  const pdfNote = document.getElementById('preview-pdf-note');
+  if (file.type.startsWith('image/')) {
+    img.src = URL.createObjectURL(file);
+    img.style.display = 'block';
+    pdfNote.classList.add('hidden');
+  } else {
+    img.style.display = 'none';
+    pdfNote.classList.remove('hidden');
+  }
+  const dateField = document.getElementById('meta-date');
+  if (!dateField.value) dateField.value = new Date().toISOString().split('T')[0];
+}
+
+function clearFile() {
+  selectedFile = null;
+  document.getElementById('file-input').value = '';
+  document.getElementById('drop-zone').classList.remove('hidden');
+  document.getElementById('preview-wrap').classList.add('hidden');
+  document.getElementById('meta-fields').classList.add('hidden');
+  document.getElementById('preview-img').src = '';
+}
+
+// Drag & drop
+const dz = document.getElementById('drop-zone');
+dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('drop-zone-active'); });
+dz.addEventListener('dragleave', () => dz.classList.remove('drop-zone-active'));
+dz.addEventListener('drop', e => {
+  e.preventDefault(); dz.classList.remove('drop-zone-active');
+  const f = e.dataTransfer.files[0];
+  if (f) { document.getElementById('file-input').files = e.dataTransfer.files; onFileSelected(document.getElementById('file-input')); }
+});
+
+async function doUpload() {
+  if (!selectedFile || !currentUser) return;
+  const btn = document.getElementById('submit-btn');
+  const progressWrap = document.getElementById('progress-wrap');
+  const progressFill = document.getElementById('progress-fill');
+  const progressLabel = document.getElementById('progress-label');
+  btn.disabled = true;
+  document.getElementById('submit-btn-text').textContent = 'Uploading…';
+  progressWrap.classList.remove('hidden');
+  progressFill.style.width = '20%';
+  progressLabel.textContent = 'Uploading file…';
+  try {
+    const ts = Date.now();
+    const ext = selectedFile.name.split('.').pop();
+    const path = `uploads/${currentUser.id}/${ts}.${ext}`;
+    const { error: storageErr } = await sb.storage.from(BUCKET).upload(path, selectedFile, { contentType: selectedFile.type, upsert: false });
+    if (storageErr) throw storageErr;
+    progressFill.style.width = '65%';
+    progressLabel.textContent = 'Saving record…';
+    const meta = {
+      uploaded_by: currentUser.id, uploader_email: currentUser.email,
+      storage_path: path, filename: selectedFile.name,
+      filesize: selectedFile.size, mimetype: selectedFile.type,
+      patient_name: document.getElementById('meta-patient').value.trim() || null,
+      trip_date: document.getElementById('meta-date').value || null,
+      driver_name: document.getElementById('meta-driver').value.trim() || null,
+      vehicle_number: document.getElementById('meta-vehicle').value.trim() || null,
+      notes: document.getElementById('meta-notes').value.trim() || null,
+      uploaded_at: new Date().toISOString(),
+    };
+    const { error: dbErr } = await sb.from('facesheet_uploads').insert(meta);
+    if (dbErr) throw new Error('DB insert failed: ' + dbErr.message);
+    progressFill.style.width = '100%';
+    progressLabel.textContent = 'Done';
+    toast('Face sheet uploaded successfully', 'success');
+    clearFile();
+    setTimeout(loadRecent, 500);
+  } catch (err) {
+    toast('Upload failed: ' + err.message, 'error');
+  } finally {
+    btn.disabled = false;
+    document.getElementById('submit-btn-text').textContent = 'Upload Face Sheet';
+    setTimeout(() => { progressWrap.classList.add('hidden'); progressFill.style.width = '0%'; }, 2000);
+  }
+}
+
+async function loadRecent() {
+  const list = document.getElementById('recent-list');
+  list.innerHTML = `<div class="py-6 text-center mono-font text-[11px] text-gray-300">Loading…</div>`;
+  try {
+    const { data, error } = await sb.from('facesheet_uploads').select('*')
+      .eq('uploaded_by', currentUser.id).order('uploaded_at', { ascending: false }).limit(10);
+    if (error) throw error;
+    if (!data || data.length === 0) {
+      list.innerHTML = `<div class="py-8 text-center mono-font text-[11px] text-gray-300">No uploads yet</div>`;
+      return;
+    }
+    list.innerHTML = data.map(row => {
+      const date = row.trip_date || row.uploaded_at?.split('T')[0] || '—';
+      const patient = row.patient_name || 'Unknown patient';
+      const meta = [row.driver_name, row.vehicle_number ? '#'+row.vehicle_number : null, row.filename].filter(Boolean).join(' · ');
+      return `<div class="flex items-center gap-3 border border-gray-100 rounded-lg px-4 py-3 bg-white hover:bg-gray-50 transition-colors">
+        <div class="w-9 h-9 rounded-md bg-gray-100 flex items-center justify-center flex-shrink-0">
+          <i class="ph-bold ph-file-text text-[16px] text-gray-400"></i>
+        </div>
+        <div class="flex-1 min-w-0">
+          <div class="text-[13px] font-medium text-black truncate">${esc(patient)}</div>
+          <div class="mono-font text-[10px] text-gray-400 mt-0.5 truncate">${esc(date)} · ${esc(meta)}</div>
+        </div>
+        <span class="mono-font text-[9px] uppercase tracking-wider px-2 py-1 rounded-full bg-green-50 text-green-600 flex-shrink-0">Uploaded</span>
+      </div>`;
+    }).join('');
+  } catch(err) {
+    list.innerHTML = `<div class="py-6 text-center mono-font text-[11px] text-gray-300">No records found · create facesheet_uploads table to enable history</div>`;
+  }
+}
+
+function esc(s) { return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+function toast(msg, type = 'info') {
+  const wrap = document.getElementById('toast-wrap');
+  const el = document.createElement('div');
+  const colors = { error: 'border-l-red-500', success: 'border-l-green-500', info: 'border-l-[#D97757]' };
+  el.className = `toast-anim bg-white border border-gray-200 border-l-4 ${colors[type]||colors.info} rounded-lg px-4 py-3 text-[13px] text-[#1a1a1a] shadow-lg min-w-[240px] max-w-[320px]`;
+  el.textContent = msg;
+  wrap.appendChild(el);
+  setTimeout(() => el.remove(), 4000);
+}
+
+document.getElementById('login-password').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+</script>
+</body>
+</html>

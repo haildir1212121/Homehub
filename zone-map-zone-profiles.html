@@ -1,0 +1,635 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Service Zone Map | Employee Hub</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <link rel="stylesheet" href="theme.css">
+</head>
+<body class="antialiased text-black bg-white overflow-hidden select-none">
+
+<div class="flex h-screen overflow-hidden relative">
+
+    <aside class="flex flex-col flex-shrink-0 w-20 md:w-60 bg-white border-r border-gray-200 z-30 relative shadow-[1px_0_0_rgba(0,0,0,0.05)]">
+        <a href="/index.html" class="flex items-center justify-center md:justify-start md:px-6 h-16 border-b border-gray-200 flex-shrink-0 bg-gray-50 w-full hover:bg-gray-100 transition-colors">
+            <i class="ph-fill ph-squares-four text-3xl text-black"></i>
+            <span class="ml-2 text-lg font-bold hidden md:block tracking-tight">Hub</span>
+        </a>
+
+        <div class="flex-1 overflow-y-auto custom-scroll p-4 space-y-1" id="sidebar-nav">
+            <a href="/index.html" class="w-full flex items-center justify-center md:justify-start p-2 rounded-md bg-white text-gray-600 hover:bg-gray-100 hover:text-black transition-colors mb-4 border border-transparent hover:border-gray-200">
+                <i class="ph-bold ph-arrow-left text-lg"></i>
+                <span class="ml-3 text-sm font-bold hidden md:block">Back to Hub</span>
+            </a>
+
+            <div id="sidebar-zones" class="space-y-1"></div>
+        </div>
+
+        <div class="p-4 border-t border-gray-200 flex items-center justify-center md:justify-between bg-white">
+            <div class="flex items-center overflow-hidden">
+                <div class="h-8 w-8 flex-shrink-0 rounded-full bg-black flex items-center justify-center text-white font-bold text-xs" id="user-avatar">OT</div>
+                <div class="hidden md:flex flex-col ml-2 min-w-0">
+                    <span id="logged-user-name" class="text-xs font-bold text-black truncate w-32">Dispatcher</span>
+                    <span id="user-role" class="text-[9px] uppercase tracking-wider text-gray-500">Active</span>
+                </div>
+            </div>
+            <button class="text-gray-400 hover:text-red-600 ml-2 flex-shrink-0" title="Logout"><i class="ph-bold ph-sign-out text-lg"></i></button>
+        </div>
+    </aside>
+
+    <main class="flex-1 flex flex-col h-full overflow-hidden bg-[#faf9f8] relative z-10">
+        
+        <header class="flex flex-col sm:flex-row sm:items-end justify-between p-4 sm:p-6 border-b border-gray-200 bg-white z-20 shrink-0">
+            <div>
+                <h1 class="text-2xl font-bold text-black tracking-tight">Service Zone Map</h1>
+                <p class="text-sm text-gray-500 mt-1">Interactive boundaries and auto-dispatch visualization</p>
+            </div>
+            <div class="mt-4 sm:mt-0 flex items-center gap-2">
+                <div class="flex items-center bg-white border border-gray-300 rounded-md overflow-hidden">
+                    <button onclick="zoomOut()" class="px-3 py-2 text-black hover:bg-gray-100 transition-colors border-r border-gray-300" title="Zoom Out">
+                        <i class="ph-bold ph-minus text-sm"></i>
+                    </button>
+                    <button onclick="zoomIn()" class="px-3 py-2 text-black hover:bg-gray-100 transition-colors border-r border-gray-300" title="Zoom In">
+                        <i class="ph-bold ph-plus text-sm"></i>
+                    </button>
+                    <button onclick="resetView()" class="px-3 py-2 text-xs font-bold text-black hover:bg-gray-100 transition-colors flex items-center gap-2">
+                        <i class="ph-bold ph-arrows-out-simple"></i> Reset
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <div id="mapWrap" class="flex-1 relative overflow-hidden" style="cursor:grab">
+            <svg id="mapSvg" width="100%" height="100%" style="display:block">
+                <defs>
+                    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+                        <feDropShadow dx="0" dy="4" stdDeviation="6" flood-opacity="0.15" />
+                    </filter>
+                    <filter id="activeShadow" x="-20%" y="-20%" width="140%" height="140%">
+                        <feDropShadow dx="0" dy="8" stdDeviation="10" flood-opacity="0.3" />
+                    </filter>
+                </defs>
+                <g id="world"></g>
+            </svg>
+
+            <div id="dispatchLegend" class="hidden absolute bottom-6 left-6 z-30 bg-white border border-black rounded-lg p-4 shadow-xl text-sm w-72 pointer-events-none">
+                <div class="font-bold text-black tracking-tight mb-3">Auto-Dispatch Hierarchy</div>
+                <div class="flex items-center gap-3 mb-2"><span class="w-3 h-3 rounded-full bg-[#10b981] border border-[#047857] shrink-0"></span> <span class="text-gray-800 font-medium">Target Zone (Origin)</span></div>
+               
+                <div class="flex items-center gap-3 mb-2"><span class="w-3 h-3 rounded-full bg-[#f59e0b] border border-[#b45309] shrink-0"></span> <span class="text-gray-800 font-medium">Proximity Backup</span></div>
+                <div class="flex items-center gap-3 mb-2"><span class="w-3 h-3 rounded-full bg-[#6366f1] border border-[#4f46e5] shrink-0"></span> <span class="text-gray-800 font-medium">Soon to Clear Only</span></div>
+                <div class="flex items-center gap-3 mb-3"><span class="w-3 h-3 rounded-full bg-[#f59e0b] border-2 border-[#4f46e5] border-dashed shrink-0" style="background: linear-gradient(135deg, #3b82f6 50%, #f59e0b 50%);"></span> <span class="text-gray-800 font-medium text-xs">Combined (Auto + Soon to Clear)</span></div>
+                
+                <div class="bg-gray-50 border border-gray-200 rounded p-3 mt-2">
+                    <div class="flex items-center gap-2 mb-1">
+                        <span class="w-3 h-3 rounded-full bg-gray-200 border border-gray-400 shrink-0"></span>
+                        <span class="font-bold text-gray-700 text-xs uppercase tracking-wide">Do Not Auto-Dispatch</span>
+                    </div>
+                    <p class="text-[11px] text-gray-500 leading-tight">Zones outside the radius are skipped during auto-dispatch. Jobs here are posted directly to the <b>Bidding Screen</b>.</p>
+                </div>
+            </div>
+
+            <div id="tooltip" class="absolute top-6 left-1/2 -translate-x-1/2 z-30 hidden pointer-events-none bg-white border border-black rounded-lg px-4 py-3 flex items-center gap-3 shadow-lg">
+                <span id="ttDot" class="w-3 h-3 rounded-full shrink-0 border border-black/20"></span>
+                <div>
+                    <div id="ttLabel" class="font-bold text-sm text-black"></div>
+                    <div id="ttDesc" class="text-xs text-gray-500 mt-0.5"></div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <div id="detailPanel" class="hidden absolute bottom-6 left-1/2 md:left-auto md:right-6 md:bottom-6 -translate-x-1/2 md:translate-x-0 z-40 bg-white rounded-lg border border-black shadow-xl w-[90%] md:w-96">
+        <div class="flex items-start justify-between px-6 py-5 border-b border-gray-100">
+            <div class="flex gap-4 items-center">
+                <div id="panelBadge" class="w-12 h-12 rounded-md flex items-center justify-center font-bold text-lg shrink-0 border border-black bg-gray-50 text-black"></div>
+                <div>
+                    <div id="panelTitle" class="font-bold text-lg tracking-tight text-black"></div>
+                    <div id="panelDesc" class="text-xs text-gray-500 mt-0.5"></div>
+                </div>
+            </div>
+            <button onclick="closePanel()" class="text-gray-400 hover:text-black transition-colors shrink-0">
+                <i class="ph-bold ph-x text-lg"></i>
+            </button>
+        </div>
+        <div class="px-6 py-5">
+            <div class="text-[10px] font-bold text-gray-400 uppercase tracking-wide mb-2">Cross Streets & Boundaries</div>
+            <div id="panelStreets" class="flex flex-wrap gap-2"></div>
+        </div>
+    </div>
+
+</div>
+
+<script>
+// ── Zone Data ──
+const ZONES = [
+  { id:"110", poly:"9.27,6.63 389.72,6.63 403,307.44 619,625.06 448.45,620.97 407.08,661.82 301.38,663.35 294.74,800.72 290.52,799.68 199.25,777.23 143.08,781.31 105,759.06 97.64,754.76 6.02,744.03 9.27,6.63", color:"#3b82f6", streets:["Airport Rd","Green Hill Rd"], desc:"Eugene Airport", lbl:{x:220,y:380} },
+  { id:"112", poly:"389.72,6.63 1472.79,6.63 1541.72,850.25 1472.79,893.14 1351.76,881.65 1270.84,900.17 1187.85,883.95 918.36,880.81 792.62,879.35 403,307.44 389.72,6.63", color:"#8b5cf6", streets:["Randy Pape Beltline","Highway 99 X Irving Rd","Willamette River"], desc:"River Road - North", lbl:{x:940,y:450} },
+  { id:"107", poly:"918.36,880.81 1187.85,883.95 1261.39,902.33 1351.76,881.65 1472.79,893.14 1380.87,985.56 1374.75,1086.16 1399.26,1123.69 1387,1179.61 1448.28,1389.99 1483,1418.58 1393.12,1453.01 1260.36,1369.56 1049.98,1201.47 990.24,1086.16 921.89,890.91 918.36,880.81", color:"#d946ef", streets:["Maxwell Rd","Northwest Expressway","River Road"], desc:"River Road - South", lbl:{x:1200,y:1140} },
+  { id:"106", poly:"1472.79,6.63 2154.49,6.63 2289.3,733.82 2255.59,1115.27 2145.3,1115.27 2048.79,1057.06 2008.96,1055.52 1969.13,1053.99 1845.04,1046.33 1704.77,1018.27 1595.34,975.86 1472.79,893.14 1541.72,850.25 1472.79,6.63", color:"#f43f5e", streets:["Crescent Ave","Randy Pape Beltine","Interstate-5"], desc:"Coburg Road - North", lbl:{x:1850,y:530} },
+  { id:"101", poly:"2048.79,1057.06 2145.3,1115.27 2255.6,1115.27 2210.15,1767.86 2026.58,1691.78 1837.53,1632.5 1768.45,1596.29 1726.07,1545.22 1805.47,1496.2 1891.51,1455.35 1985.47,1356.63 1993.64,1191.86 2008.96,1055.52 2048.79,1057.06", color:"#0ea5e9", streets:["Coburg Rd","Harlow Road","Interstate-5"], desc:"Coburg Road - Southeast", lbl:{x:1980,y:1400} },
+  { id:"105", poly:"1472.79,893.14 1704.77,1018.27 1836.36,1050.16 2008.29,1055.5 2008.96,1055.52 1993.64,1191.86 1985.47,1356.63 1882.39,1459.68 1756.47,1526.45 1609.64,1475.78 1483,1418.58 1448.28,1389.99 1387,1179.61 1399.26,1123.69 1374.75,1086.16 1380.87,985.56 1472.79,893.14", color:"#06b6d4", streets:["Cal Young Road","Oakway Road","Highway-132"], desc:"Coburg Road - Southwest", lbl:{x:1680,y:1180} },
+  { id:"115", poly:"448.45,620.97 619,625.05 792.62,879.35 921.9,890.91 1049.98,1201.47 1260.36,1369.56 1107.17,1356.63 712.96,1363.1 290.15,1363.1 265.64,1249.05 290.15,805.82 298.07,673.05 301.39,663.35 407.09,661.82 448.45,620.97", color:"#10b981", streets:["Royal Ave","Clear Lake Rd","Green Hill Rd"], desc:"Barger Drive", lbl:{x:680,y:1020} },
+  { id:"114", poly:"705.71,1362.86 1085.58,1356.63 1253.11,1369.33 1379.75,1455.11 1385.87,1452.77 1398.13,1570.52 1370.56,1596.05 1385.41,1772.28 1261.28,1770.69 1261.28,1725.75 724.09,1725.75 723.72,1718.41 705.71,1362.86", color:"#f59e0b", streets:["Roosevelt Blvd","N Bertelsen RD","Chambers St"], desc:"West 11th - West ", lbl:{x:1040,y:1560} },
+  { id:"104", poly:"1385.87,1452.77 1483,1418.58 1756.47,1526.45 1726.07,1545.22 1770.59,1597.41 1837.53,1632.49 1826.15,1778.07 1393.13,1778.08 1392.66,1772.52 1370.56,1596.05 1398.13,1570.52 1385.87,1452.77", color:"#ea580c", streets:["E 11th Ave","6th and 7th Ave","The Whiteaker"], desc:"Downtown Eugene", lbl:{x:1600,y:1620} },
+  { id:"102", poly:"1824.86,1865.41 1824.37,1785.74 1835.75,1640.16 1840.71,1642.76 2026.58,1691.78 2208.37,1775.52 2437.13,1751.01 2553.56,1877.65 1824.86,1865.41", color:"#e11d48", streets:["Glenwood Dr","Agate St","E 18th ave"], desc:"East Campus", lbl:{x:2100,y:1780} },
+  { id:"113", poly:"1268.53,1770.93 1392.66,1772.52 1826.15,1778.08 1826.64,1857.75 1831.84,2706.63 1252.19,2706.63 1268.53,1770.93", color:"#9f1239", streets:["W 18th Ave","Chambers St - South","Willamette Stret - South"], desc:"South Hills", lbl:{x:1540,y:2240} },
+  { id:"103", poly:"1826.15,1857.73 2553.56,1877.65 2555.34,1869.99 2617.13,2028.29 2509.9,2209.05 2597.22,2500.12 2955.68,2706.63 1831.84,2706.63 1826.15,1857.73", color:"#d97706", streets:["East 30th Ave","Laurel Hill","Goshen"], desc:"LCC and Cottage Grove", lbl:{x:2250,y:2300} },
+  { id:"109", poly:"6.02,744.03 105,759.06 143.09,781.31 199.26,777.22 290.15,805.82 266.44,1234.69 298.07,1373.65 712.96,1363.1 730.97,1718.65 651.68,1725.99 422.92,2706.63 6.02,2706.63 6.02,744.03", color:"#14b8a6", streets:["W 11th Ave / Terry St","Royal Ave / Bertelsen Rd","Greenhill Rd / W 18th Ave"], desc:"Southwest — Bethel", lbl:{x:350,y:1700} },
+  { id:"108", poly:"637.39,1725.99 731.34,1725.99 1266.49,1725.99 1268.53,1778.07 1252.19,2706.63 422.92,2706.63 637.39,1725.99", color:"#c026d3", streets:["W 28th Ave / Bailey Hill Rd","Spencer Butte trailhead","Fox Hollow Rd"], desc:"South — Bailey Hill & Ridgeline", lbl:{x:900,y:2200} },
+  { id:"204", poly:"2154.49,6.63 2876.02,6.63 2876.02,1435.8 2753.47,1659.61 2756.12,1762.2 3721.64,2706.63 2955.68,2706.63 2597.22,2500.12 2509.9,2209.05 2617.13,2028.29 2555.34,1869.99 2437.13,1751.01 2208.37,1775.52 2210.15,1767.86 2289.3,733.82 2154.49,6.63", color:"#2563eb", streets:["Hwy 126 / Gateway","I-5 / Beltline Rd","Marcola Rd / 42nd St"], desc:"East Springfield", lbl:{x:2560,y:1100} },
+  { id:"205", poly:"2876.02,6.63 3698.02,6.63 3721.64,2706.63 2756.12,1762.2 2753.47,1659.61 2876.02,1435.8 2876.02,6.63", color:"#059669", streets:["McKenzie Hwy / Camp Creek Rd","Thurston Hills area","Weyerhaeuser Rd"], desc:"Far East — McKenzie River", lbl:{x:3200,y:1000} },
+];
+
+// ── Dispatch Rules ──
+const DISPATCH_RULES = {
+    "205": { 
+        radius: 1200, // SVG units representing ~5 miles
+        queue: ["205"], 
+        backups: ["204", "101", "102"],
+        soonToClear: ["204", "101", "102"] 
+    },
+    "204": {
+        radius: 600,
+        queue: ["204",],
+        backups: [ "205", "101", "102"],
+        soonToClear: ["101", "102", "104", "105"] 
+    },
+    "101": {
+        radius: 600,
+        queue: ["101", ],
+        backups: ["102", "105", "204"],
+        soonToClear: ["101", "102", "104", "204"]
+    },
+    "102": {
+        radius: 600,
+        queue: ["102", ],
+        backups: ["104", "204", "105", "104"],
+        soonToClear: ["104", "204", "105", "104", "101"] 
+    },
+    "104": {
+        radius: 600,
+        queue: ["104"],
+        backups: ["101", "102", "113", "107", "101"],
+        soonToClear: ["101", "102", "114", "107", "112"] 
+    },
+    "107": {
+        radius: 600,
+        queue: ["107"], 
+        backups: ["104", "112"], 
+        soonToClear: [] 
+    },
+    "106": {
+        radius: 600,
+        queue: ["106"], 
+        backups: ["105", "112", "204"], 
+        soonToClear: ["105", "204", "112"] 
+    },
+    "113": {
+        radius: 600,
+        queue: ["113"], 
+        backups: ["104"], 
+        soonToClear: [] 
+    },
+    "103": {
+        radius: 600,
+        queue: ["103"], 
+        backups: ["102"], 
+        soonToClear: ["102"] 
+    },
+    "105": {
+        radius: 600,
+        queue: ["105"], 
+        backups: ["106", "101", "107", "104"], 
+        soonToClear: ["106", "101", "107", "104"] 
+    },
+    "112": {
+        radius: 600,
+        queue: ["112"], 
+        backups: ["107", "106", "104", "110"], 
+        soonToClear: ["107", "106", "104",  "110", "115"] 
+    },
+    "110": {
+        radius: 600,
+        queue: ["110"], 
+        backups: [], 
+        soonToClear: ["110"] 
+    },
+    "115": {
+        radius: 600,
+        queue: ["115"], 
+        backups: ["114", "107", "110"], 
+        soonToClear: ["114", "107", "104",  "112", "110"] 
+    },
+    "114": {
+        radius: 600,
+        queue: ["114"], 
+        backups: ["115", "104", "107",], 
+        soonToClear: ["115", "104", "107"] 
+    },
+};
+
+function getDispatchRules(id) {
+    return DISPATCH_RULES[id] || { radius: 0, queue: [], backups: [], soonToClear: [] };
+}
+
+// ── State ──
+let tx = 0, ty = 0, scale = 1;
+let activeId = null, hoveredId = null;
+let dragging = false, dsx = 0, dsy = 0;
+
+const SVG_W = 3728, SVG_H = 2721;
+const worldEl = document.getElementById('world');
+const mapWrap = document.getElementById('mapWrap');
+const tooltip = document.getElementById('tooltip');
+const panel = document.getElementById('detailPanel');
+const legend = document.getElementById('dispatchLegend');
+
+// ── Build sidebar ──
+const sidebarZones = document.getElementById('sidebar-zones');
+sidebarZones.innerHTML = `
+    <div class="text-[10px] font-bold text-gray-400 uppercase tracking-wide mb-2 hidden md:block pl-2">Zones (${ZONES.length})</div>
+    ` + ZONES.map(z => `
+    <div class="sidebar-item w-full flex items-center justify-center md:justify-start p-2 rounded-md bg-white text-gray-600 hover:bg-gray-100 hover:text-black transition-colors cursor-pointer border border-transparent"
+         data-zone="${z.id}"
+         onmouseenter="hoverZone('${z.id}')" onmouseleave="unhoverZone()">
+        <span class="w-2.5 h-2.5 rounded-full shrink-0 md:mr-3 border border-black/10" style="background:${z.color}"></span>
+        <div class="flex-1 min-w-0 hidden md:block">
+            <div class="font-bold text-sm leading-tight text-gray-800 title-text">${z.id}</div>
+            <div class="text-[10px] text-gray-500 truncate">${z.desc.split('—')[0].trim()}</div>
+        </div>
+    </div>`).join('');
+
+sidebarZones.querySelectorAll('[data-zone]').forEach(el => {
+    el.addEventListener('click', () => zoomToZone(el.dataset.zone));
+});
+
+// ── Build SVG zones ──
+function getScale() {
+    const r = mapWrap.getBoundingClientRect();
+    return { sx: r.width / SVG_W, sy: r.height / SVG_H, w: r.width, h: r.height };
+}
+
+function buildMap() {
+    const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    g.id = 'innerG';
+
+    // Radius Ring
+    const radiusRing = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+    radiusRing.id = 'push-radius';
+    radiusRing.setAttribute('class', 'pointer-events-none transition-all duration-300');
+    radiusRing.style.fill = 'rgba(16, 185, 129, 0.05)';
+    radiusRing.style.stroke = '#10b981';
+    radiusRing.style.strokeWidth = '4';
+    radiusRing.style.strokeDasharray = '15, 15';
+    radiusRing.style.opacity = '0';
+    g.appendChild(radiusRing);
+
+    // Polygons
+    ZONES.forEach(z => {
+        const p = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+        p.setAttribute('points', z.poly);
+        p.setAttribute('data-zone', z.id);
+        p.classList.add('zone-poly');
+        p.style.fill = z.color + '25';
+        p.style.stroke = z.color;
+        p.style.strokeWidth = '2';
+        p.addEventListener('mouseenter', () => hoverZone(z.id));
+        p.addEventListener('mouseleave', unhoverZone);
+        p.addEventListener('click', e => { e.stopPropagation(); zoomToZone(z.id); });
+        g.appendChild(p);
+    });
+
+    // Labels
+    ZONES.forEach(z => {
+        const lg = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+        lg.classList.add('zone-label');
+        lg.setAttribute('data-lbl', z.id);
+
+        const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+        rect.setAttribute('x', z.lbl.x - 40); rect.setAttribute('y', z.lbl.y - 10);
+        rect.setAttribute('width', 180); rect.setAttribute('height', 80);
+        rect.setAttribute('rx', 8);
+        rect.style.fill = '#ffffff'; 
+        rect.style.stroke = z.color; 
+        rect.style.strokeWidth = '3';
+
+        const txt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        txt.setAttribute('x', z.lbl.x + 50 ); txt.setAttribute('y', z.lbl.y + 44);
+        txt.setAttribute('text-anchor', 'middle');
+        txt.style.fill = '#000000'; 
+        txt.style.fontSize = '48px'; 
+        txt.style.fontWeight = 'bold';
+        txt.style.fontFamily = "Inter, sans-serif";
+        txt.textContent = z.id;
+
+        lg.appendChild(rect); lg.appendChild(txt);
+        g.appendChild(lg);
+    });
+
+    worldEl.innerHTML = '';
+    worldEl.appendChild(g);
+}
+buildMap();
+
+// ── Transform ──
+function applyTransform() {
+    const { sx, sy } = getScale();
+    worldEl.setAttribute('transform', `translate(${tx},${ty}) scale(${scale})`);
+    const inner = document.getElementById('innerG');
+    if (inner) inner.setAttribute('transform', `scale(${sx},${sy})`);
+}
+applyTransform();
+new ResizeObserver(() => applyTransform()).observe(mapWrap);
+
+// ── Hover ──
+function hoverZone(id) {
+    if (activeId) return;
+    hoveredId = id;
+    const z = ZONES.find(z => z.id === id);
+    if (!z) return;
+    
+    refreshStyles();
+
+    // Show tooltip
+    document.getElementById('ttDot').style.background = '#10b981'; // Dispatch Green
+    document.getElementById('ttLabel').textContent = 'Dispatch Origin: ' + z.id;
+    document.getElementById('ttDesc').textContent = 'Viewing auto-dispatch rules';
+    tooltip.classList.remove('hidden');
+
+    // Show Legend
+    legend.classList.remove('hidden');
+    legend.classList.add('fade-in');
+
+    // Update Radius Ring Position
+    const rules = getDispatchRules(id);
+    const ring = document.getElementById('push-radius');
+    if (ring && rules.radius > 0) {
+        ring.setAttribute('cx', z.lbl.x);
+        ring.setAttribute('cy', z.lbl.y);
+        ring.setAttribute('r', rules.radius);
+        ring.style.opacity = '1';
+    }
+
+    // Highlight sidebar items based on combined rules
+    sidebarZones.querySelectorAll('[data-zone]').forEach(el => {
+        const itemZone = el.dataset.zone;
+        el.style.borderLeft = ""; // reset inline style
+        
+        const isQueue = rules.queue.includes(itemZone);
+        const isBackup = rules.backups.includes(itemZone);
+        const isSoonToClear = rules.soonToClear.includes(itemZone);
+
+        if (itemZone === id) {
+            el.classList.add('bg-green-50', 'border-green-200');
+        } else if (isQueue) {
+            el.classList.add('bg-blue-50', 'border-blue-200');
+            if (isSoonToClear) el.style.borderLeft = "4px dashed #4f46e5";
+        } else if (isBackup) {
+            el.classList.add('bg-amber-50', 'border-amber-200');
+            if (isSoonToClear) el.style.borderLeft = "4px dashed #4f46e5";
+        } else if (isSoonToClear) {
+            el.classList.add('bg-indigo-50', 'border-indigo-200');
+        }
+    });
+}
+
+function unhoverZone() {
+    hoveredId = null;
+    tooltip.classList.add('hidden');
+    
+    // Hide legend
+    legend.classList.add('hidden');
+    legend.classList.remove('fade-in');
+    
+    // Hide radius ring
+    const ring = document.getElementById('push-radius');
+    if (ring) ring.style.opacity = '0';
+
+    refreshStyles();
+    
+    // Reset sidebar
+    sidebarZones.querySelectorAll('[data-zone]').forEach(el => {
+        el.className = "sidebar-item w-full flex items-center justify-center md:justify-start p-2 rounded-md bg-white text-gray-600 hover:bg-gray-100 hover:text-black transition-colors cursor-pointer border border-transparent";
+        el.style.borderLeft = "";
+    });
+}
+
+function refreshStyles() {
+    const activeRules = hoveredId ? getDispatchRules(hoveredId) : null;
+
+    worldEl.querySelectorAll('.zone-poly').forEach(p => {
+        const id = p.dataset.zone;
+        const z = ZONES.find(z => z.id === id);
+
+        const isTarget = id === hoveredId;
+        const isQueue = activeRules && activeRules.queue.includes(id);
+        const isBackup = activeRules && activeRules.backups.includes(id);
+        const isSoonToClear = activeRules && activeRules.soonToClear.includes(id);
+
+        // Reset dashes by default
+        p.style.strokeDasharray = 'none';
+
+        if (!hoveredId && !activeId) {
+            p.style.fill = z.color + '25'; p.style.stroke = z.color;
+            p.style.strokeWidth = '2'; p.style.opacity = '1'; p.style.filter = 'none';
+            return;
+        }
+
+        if (hoveredId) {
+            if (isTarget) {
+                p.style.fill = '#10b98140'; p.style.stroke = '#047857'; p.style.strokeWidth = '6';
+                p.style.opacity = '1'; p.style.filter = 'url(#activeShadow)';
+            } else if (isQueue) {
+                p.style.fill = '#3b82f640'; 
+                p.style.stroke = isSoonToClear ? '#4f46e5' : '#1d4ed8'; // Indigo dashed if both
+                p.style.strokeWidth = '4';
+                p.style.strokeDasharray = isSoonToClear ? '12, 6' : 'none';
+                p.style.opacity = '0.9'; p.style.filter = 'url(#shadow)';
+            } else if (isBackup) {
+                p.style.fill = '#f59e0b40'; 
+                p.style.stroke = isSoonToClear ? '#4f46e5' : '#b45309'; // Indigo dashed if both
+                p.style.strokeWidth = '4';
+                p.style.strokeDasharray = isSoonToClear ? '12, 6' : 'none';
+                p.style.opacity = '0.8'; p.style.filter = 'none';
+            } else if (isSoonToClear) {
+                p.style.fill = '#6366f140'; p.style.stroke = '#4f46e5'; p.style.strokeWidth = '3';
+                p.style.opacity = '0.85'; p.style.filter = 'none';
+            } else {
+                p.style.fill = '#f3f4f6'; p.style.stroke = '#9ca3af'; p.style.strokeWidth = '1';
+                p.style.opacity = '0.4'; p.style.filter = 'none';
+            }
+        } else if (activeId) {
+            const isActive = id === activeId;
+            p.style.fill = z.color + (isActive ? '40' : '15');
+            p.style.stroke = z.color;
+            p.style.strokeWidth = isActive ? '6' : '2';
+            p.style.opacity = isActive ? '1' : '0.3';
+            p.style.filter = isActive ? 'url(#activeShadow)' : 'none';
+        }
+    });
+
+    worldEl.querySelectorAll('.zone-label').forEach(lg => {
+        const id = lg.dataset.lbl;
+        const z = ZONES.find(z => z.id === id);
+        const rect = lg.querySelector('rect');
+        const txt = lg.querySelector('text');
+
+        const isTarget = id === hoveredId;
+        const isQueue = activeRules && activeRules.queue.includes(id);
+        const isBackup = activeRules && activeRules.backups.includes(id);
+        const isSoonToClear = activeRules && activeRules.soonToClear.includes(id);
+
+        // Reset states
+        rect.style.strokeDasharray = 'none';
+        txt.style.fontSize = '48px';
+
+        if (!hoveredId && !activeId) {
+            lg.style.opacity = '1';
+            rect.style.fill = '#ffffff'; rect.style.stroke = z.color;
+            txt.style.fill = '#000000'; txt.textContent = z.id;
+            return;
+        }
+
+        if (hoveredId) {
+            if (isTarget) {
+                lg.style.opacity = '1';
+                rect.style.fill = '#047857'; rect.style.stroke = '#047857';
+                txt.style.fill = '#ffffff'; txt.textContent = id;
+            } else if (isQueue) {
+                lg.style.opacity = '0.9';
+                rect.style.fill = '#1d4ed8'; 
+                rect.style.stroke = isSoonToClear ? '#4f46e5' : '#1d4ed8';
+                rect.style.strokeDasharray = isSoonToClear ? '6,4' : 'none';
+                txt.style.fill = '#ffffff'; 
+                txt.style.fontSize = isSoonToClear ? '40px' : '48px';
+                txt.textContent = isSoonToClear ? 'Q/S-' + id : 'Q-' + id;
+            } else if (isBackup) {
+                lg.style.opacity = '0.9';
+                rect.style.fill = '#b45309'; 
+                rect.style.stroke = isSoonToClear ? '#4f46e5' : '#b45309';
+                rect.style.strokeDasharray = isSoonToClear ? '6,4' : 'none';
+                txt.style.fill = '#ffffff'; 
+                txt.style.fontSize = isSoonToClear ? '40px' : '48px';
+                txt.textContent = isSoonToClear ? 'B/S-' + id : 'B-' + id;
+            } else if (isSoonToClear) {
+                lg.style.opacity = '0.9';
+                rect.style.fill = '#4f46e5'; rect.style.stroke = '#4f46e5';
+                txt.style.fill = '#ffffff'; txt.textContent = 'S-' + id;
+            } else {
+                lg.style.opacity = '0.8';
+                rect.style.fill = '#f9fafb'; rect.style.stroke = '#9ca3af';
+                txt.style.fill = '#6b7280'; txt.style.fontSize = '34px'; 
+                txt.textContent = id + ' (Bid)';
+            }
+        }
+    });
+}
+
+// ── Zoom & Pan ──
+function zoomToZone(id) {
+    const z = ZONES.find(z => z.id === id);
+    if (!z) return;
+    activeId = id;
+    const { sx, sy, w, h } = getScale();
+    const s = 1.3;
+    tx = w / 2 - z.lbl.x * sx * s;
+    ty = h / 2 - z.lbl.y * sy * s;
+    scale = s;
+    
+    applyTransform();
+    refreshStyles();
+    showPanel(z);
+    tooltip.classList.add('hidden');
+
+    sidebarZones.querySelectorAll('[data-zone]').forEach(el => {
+        const isThis = el.dataset.zone === id;
+        const title = el.querySelector('.title-text');
+        el.style.borderLeft = "";
+        
+        if(isThis) {
+            el.classList.add('bg-gray-100', 'text-black', 'border-gray-200');
+            el.classList.remove('border-transparent');
+            if(title) title.classList.add('text-black');
+        } else {
+            el.classList.remove('bg-gray-100', 'text-black', 'border-gray-200');
+            el.classList.add('border-transparent');
+            if(title) title.classList.remove('text-black');
+        }
+    });
+}
+
+function showPanel(z) {
+    panel.classList.remove('hidden');
+    panel.classList.add('panel-enter');
+
+    const badge = document.getElementById('panelBadge');
+    badge.textContent = z.id;
+    badge.style.backgroundColor = z.color + '15';
+    badge.style.color = z.color;
+    badge.style.borderColor = z.color;
+
+    document.getElementById('panelTitle').textContent = 'Zone ' + z.id;
+    document.getElementById('panelDesc').textContent = z.desc;
+    
+    document.getElementById('panelStreets').innerHTML = z.streets.map(s =>
+        `<span class="px-3 py-1 bg-gray-50 border border-gray-200 rounded text-xs font-medium text-black">${s}</span>`
+    ).join('');
+}
+
+function closePanel() {
+    panel.classList.add('hidden');
+    panel.classList.remove('panel-enter');
+    activeId = null;
+    tx = 0; ty = 0; scale = 1;
+    applyTransform();
+    refreshStyles();
+    
+    sidebarZones.querySelectorAll('[data-zone]').forEach(el => {
+        el.className = "sidebar-item w-full flex items-center justify-center md:justify-start p-2 rounded-md bg-white text-gray-600 hover:bg-gray-100 hover:text-black transition-colors cursor-pointer border border-transparent";
+        el.style.borderLeft = "";
+    });
+}
+
+function resetView() { closePanel(); }
+function zoomIn()  { scale = Math.min(8, scale * 1.3); applyTransform(); }
+function zoomOut() { scale = Math.max(0.4, scale * 0.7); applyTransform(); }
+
+// Map interactions
+mapWrap.addEventListener('wheel', e => {
+    e.preventDefault();
+    const rect = mapWrap.getBoundingClientRect();
+    const mx = e.clientX - rect.left, my = e.clientY - rect.top;
+    const d = e.deltaY > 0 ? 0.9 : 1.1;
+    const ns = Math.max(0.4, Math.min(8, scale * d));
+    const r = ns / scale;
+    tx = mx - r * (mx - tx);
+    ty = my - r * (my - ty);
+    scale = ns;
+    applyTransform();
+}, { passive: false });
+
+mapWrap.addEventListener('pointerdown', e => {
+    if (e.button !== 0) return;
+    dragging = true;
+    dsx = e.clientX - tx; dsy = e.clientY - ty;
+    mapWrap.style.cursor = 'grabbing';
+    mapWrap.setPointerCapture(e.pointerId);
+});
+
+mapWrap.addEventListener('pointermove', e => {
+    if (!dragging) return;
+    tx = e.clientX - dsx; ty = e.clientY - dsy;
+    applyTransform();
+});
+
+mapWrap.addEventListener('pointerup', () => {
+    dragging = false;
+    mapWrap.style.cursor = 'grab';
+});
+</script>
+</body>
+</html>

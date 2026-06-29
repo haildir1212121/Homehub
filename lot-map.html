@@ -1,0 +1,765 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lot Map — DLX DMT</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://unpkg.com/@phosphor-icons/web"></script>
+<link rel="stylesheet" href="theme.css">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  body { height: 100vh; overflow: hidden; display: flex; flex-direction: column; }
+
+  /* ── Header ──────────────────────────────────────────────── */
+  #top-bar {
+    background: #fff;
+    border-bottom: 1px solid #e5e7eb;
+    padding: 0 20px;
+    height: 56px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-shrink: 0;
+    z-index: 1000;
+  }
+  .back-btn {
+    width: 32px; height: 32px;
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 6px;
+    border: 1px solid #e5e7eb;
+    background: #fff;
+    color: #6b7280;
+    cursor: pointer;
+    transition: all 0.1s;
+    flex-shrink: 0;
+  }
+  .back-btn:hover { background: #f3f4f6; color: #1a1a1a; }
+  .logo-sq {
+    width: 28px; height: 28px;
+    background: #000;
+    border-radius: 4px;
+    display: flex; align-items: center; justify-content: center;
+    color: #fff;
+    font-family: 'Inter Tight', sans-serif;
+    font-size: 13px;
+    font-weight: 700;
+    flex-shrink: 0;
+  }
+  .page-id {
+    font-family: 'Inter Tight', sans-serif;
+    font-size: 15px;
+    font-weight: 600;
+    color: #000;
+    letter-spacing: -0.01em;
+  }
+  .page-sub {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: #9ca3af;
+  }
+  .hdr-right { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+  .status-dot { width: 6px; height: 6px; border-radius: 50%; background: #9ca3af; flex-shrink: 0; }
+  .status-dot.live { background: #10b981; box-shadow: 0 0 0 3px rgba(16,185,129,0.15); animation: pulse 2s infinite; }
+  .status-dot.error { background: #dc2626; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.5} }
+  #status-text { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: #9ca3af; letter-spacing: 0.03em; }
+  .hdr-btn {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 6px 12px;
+    border: 1px solid #e5e7eb;
+    border-radius: 6px;
+    background: #fff;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #6b7280;
+    cursor: pointer;
+    transition: all 0.1s;
+  }
+  .hdr-btn:hover { background: #f3f4f6; color: #1a1a1a; }
+  .hdr-btn.accent { background: #D97757; border-color: #D97757; color: #fff; }
+  .hdr-btn.accent:hover { background: #c46a4c; }
+  .hdr-btn:disabled { opacity: .4; cursor: not-allowed; }
+
+  /* ── Filter Bar ──────────────────────────────────────────── */
+  #filter-bar {
+    background: #fff;
+    border-bottom: 1px solid #f3f4f6;
+    padding: 6px 20px;
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    flex-shrink: 0;
+  }
+  .filter-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: #9ca3af;
+    margin-right: 2px;
+  }
+  .fbtn {
+    padding: 4px 10px;
+    border: 1px solid #e5e7eb;
+    border-radius: 5px;
+    background: #fff;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: #9ca3af;
+    cursor: pointer;
+    transition: all 0.1s;
+  }
+  .fbtn.active { background: #000; border-color: #000; color: #fff; }
+  .fbtn:hover:not(.active) { background: #f9fafb; color: #1a1a1a; }
+  .fbtn.fleet-dlx.active { background: #2563eb; border-color: #2563eb; color: #fff; }
+  .fbtn.fleet-dmt.active { background: #D97757; border-color: #D97757; color: #fff; }
+  .fbtn.fleet-ot.active  { background: #047857; border-color: #047857; color: #fff; }
+  .sep { width: 1px; height: 16px; background: #e5e7eb; margin: 0 4px; }
+  #lot-toggle {
+    margin-left: auto;
+    padding: 4px 10px;
+    border: 1px solid #e5e7eb;
+    border-radius: 5px;
+    background: #fff;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: #9ca3af;
+    cursor: pointer;
+    transition: all 0.1s;
+  }
+  #lot-toggle.on { background: #ecfdf5; border-color: #a7f3d0; color: #047857; }
+  #lot-toggle:hover { background: #f9fafb; }
+
+  /* ── Main layout ─────────────────────────────────────────── */
+  #main { display: flex; flex: 1; overflow: hidden; }
+  #sidebar {
+    width: 250px;
+    background: #fff;
+    border-right: 1px solid #e5e7eb;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    flex-shrink: 0;
+  }
+  #sidebar-header {
+    padding: 12px 14px;
+    border-bottom: 1px solid #f3f4f6;
+    display: flex;
+    gap: 16px;
+    align-items: baseline;
+  }
+  .stat { display: flex; flex-direction: column; }
+  .stat .n { font-family: 'Inter Tight', sans-serif; font-size: 22px; font-weight: 700; line-height: 1; }
+  .stat .l { font-family: 'JetBrains Mono', monospace; font-size: 8px; text-transform: uppercase;
+    letter-spacing: 0.12em; color: #9ca3af; margin-top: 3px; }
+  .stat.lot .n { color: #047857; }
+  .stat.dlx .n { color: #2563eb; }
+  .stat.dmt .n { color: #D97757; }
+  .stat.ot  .n { color: #047857; }
+
+  #vehicle-list { overflow-y: auto; flex: 1; padding: 2px 0; }
+  #vehicle-list::-webkit-scrollbar { width: 4px; }
+  #vehicle-list::-webkit-scrollbar-thumb { background: #e5e7eb; border-radius: 2px; }
+  .vehicle-item {
+    padding: 7px 14px;
+    cursor: pointer;
+    border-left: 2px solid transparent;
+    transition: all 0.1s;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .vehicle-item:hover { background: #f9fafb; border-left-color: #e5e7eb; }
+  .vehicle-item.selected { background: #eff6ff; border-left-color: #2563eb; }
+  .vehicle-item.on-road { opacity: .5; }
+  .fleet-tag {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 8px; font-weight: 600;
+    padding: 1px 4px;
+    border-radius: 3px;
+    letter-spacing: 0.05em;
+  }
+  .fleet-tag.DLX { background: #eff6ff; color: #2563eb; }
+  .fleet-tag.DMT { background: #fff7ed; color: #D97757; }
+  .fleet-tag.OT  { background: #ecfdf5; color: #047857; }
+  .vehicle-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+  .vehicle-name { font-size: 12px; font-weight: 600; color: #1a1a1a; font-family: 'Inter', sans-serif; }
+  .vehicle-speed { margin-left: auto; font-family: 'JetBrains Mono', monospace; font-size: 10px; color: #9ca3af; }
+  .vehicle-speed.moving { color: #d97706; }
+
+  /* ── Map ──────────────────────────────────────────────────── */
+  #map-wrap { position: relative; flex: 1; overflow: hidden; }
+  #map { position: absolute; inset: 0; }
+  .leaflet-container { background: #f8f8f5 !important; }
+
+  /* ── Pill markers ────────────────────────────────────────── */
+  .lot-pill {
+    transform: translate(-50%, -50%);
+    display: flex; align-items: center; gap: 5px;
+    background: #fff;
+    border: 1.5px solid #e5e7eb;
+    border-radius: 20px;
+    padding: 3px 8px 3px 6px;
+    white-space: nowrap;
+    cursor: pointer;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+    transition: transform 0.1s, box-shadow 0.1s;
+  }
+  .lot-pill:hover { transform: translate(-50%,-50%) scale(1.06); box-shadow: 0 3px 10px rgba(0,0,0,0.12); z-index: 1000; }
+  .lot-pill.f-DLX { border-color: #93c5fd; }
+  .lot-pill.f-DMT { border-color: #fdba74; }
+  .lot-pill.f-OT  { border-color: #86efac; }
+  .lot-pill .sdot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+  .lot-pill .pn { font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: 600; color: #1a1a1a; }
+  .lot-pill.sel { outline: 2px solid #000; outline-offset: 1px; }
+
+  /* ── Detail panel ────────────────────────────────────────── */
+  #detail-panel {
+    position: absolute;
+    bottom: 16px; right: 16px;
+    width: 240px;
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    padding: 16px;
+    z-index: 1000;
+    display: none;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.10);
+  }
+  #detail-panel.visible { display: block; }
+  #detail-close {
+    position: absolute; top: 10px; right: 12px;
+    background: none; border: none;
+    color: #9ca3af; font-size: 16px; cursor: pointer; line-height: 1;
+  }
+  #detail-close:hover { color: #1a1a1a; }
+  .detail-head { display: flex; align-items: center; gap: 8px; margin-bottom: 2px; }
+  .detail-name { font-family: 'Inter Tight', sans-serif; font-size: 20px; font-weight: 700; color: #000; }
+  .detail-group {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px; color: #9ca3af;
+    text-transform: uppercase; letter-spacing: 0.08em;
+    margin-bottom: 10px; padding-bottom: 10px;
+    border-bottom: 1px solid #f3f4f6;
+  }
+  .detail-row { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 5px; font-size: 11px; }
+  .detail-row .dk { color: #9ca3af; font-family: 'JetBrains Mono', monospace; font-size: 10px; }
+  .detail-row .dv { color: #1a1a1a; font-weight: 500; }
+  .detail-row .dv.fast { color: #d97706; }
+  .detail-row .dv.parked { color: #047857; }
+  #d-address-wrap { margin-top: 10px; padding-top: 10px; border-top: 1px solid #f3f4f6; }
+  #d-address { font-size: 11px; color: #1a1a1a; line-height: 1.4; margin-bottom: 8px; min-height: 16px; }
+  #d-address.loading { color: #9ca3af; font-style: italic; }
+  .copy-row { display: flex; gap: 6px; }
+  .copy-btn {
+    flex: 1;
+    padding: 5px 0;
+    border: 1px solid #e5e7eb;
+    border-radius: 5px;
+    background: #fff;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: #6b7280;
+    cursor: pointer;
+    transition: all 0.1s;
+    text-align: center;
+  }
+  .copy-btn:hover { background: #f3f4f6; color: #1a1a1a; }
+  .copy-btn.copied { background: #ecfdf5; border-color: #a7f3d0; color: #047857; }
+
+  /* ── Export modal ─────────────────────────────────────────── */
+  #export-overlay {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.3);
+    backdrop-filter: blur(2px);
+    z-index: 9999;
+    display: none;
+    align-items: center; justify-content: center;
+  }
+  #export-overlay.visible { display: flex; }
+  .export-box {
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    padding: 24px;
+    width: 400px;
+    box-shadow: 0 24px 64px rgba(0,0,0,0.15);
+    position: relative;
+  }
+  .export-box h2 { font-family: 'Inter Tight', sans-serif; font-size: 18px; font-weight: 700; color: #000; margin-bottom: 2px; }
+  .export-box .sub { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: #9ca3af; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 18px; }
+  .ef { margin-bottom: 12px; }
+  .ef label { display: block; font-family: 'JetBrains Mono', monospace; font-size: 9px; text-transform: uppercase; letter-spacing: 0.12em; color: #9ca3af; margin-bottom: 5px; }
+  .ef input, .ef select {
+    width: 100%;
+    border: 1px solid #e5e7eb;
+    border-radius: 6px;
+    padding: 8px 10px;
+    color: #1a1a1a;
+    font-family: 'Inter', sans-serif;
+    font-size: 13px;
+    background: #fff;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+  .ef input:focus, .ef select:focus { border-color: #000; }
+  .ef-row { display: flex; gap: 10px; }
+  .ef-row .ef { flex: 1; }
+  .export-actions { display: flex; gap: 8px; margin-top: 8px; }
+  .export-actions button {
+    flex: 1; border: none; border-radius: 7px; padding: 10px;
+    font-family: 'Inter Tight', sans-serif; font-size: 12px; font-weight: 600;
+    cursor: pointer; transition: opacity 0.1s;
+  }
+  .export-actions button:hover { opacity: .88; }
+  .export-actions button:disabled { opacity: .4; cursor: not-allowed; }
+  #exp-trips { background: #000; color: #fff; }
+  #exp-history { background: #f3f4f6; color: #1a1a1a; border: 1px solid #e5e7eb !important; }
+  #exp-current { background: #f3f4f6; color: #1a1a1a; border: 1px solid #e5e7eb !important; }
+  #exp-close { position: absolute; top: 14px; right: 16px; background: none; border: none; color: #9ca3af; font-size: 18px; cursor: pointer; }
+  #exp-close:hover { color: #1a1a1a; }
+  #exp-status { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: #9ca3af; margin-top: 10px; min-height: 14px; }
+  #exp-status.err { color: #dc2626; }
+
+  /* ── Loading ─────────────────────────────────────────────── */
+  #loading {
+    position: absolute; inset: 0;
+    background: rgba(255,255,255,0.6);
+    display: none; align-items: center; justify-content: center;
+    z-index: 500;
+  }
+  .spinner {
+    width: 28px; height: 28px;
+    border: 3px solid #e5e7eb;
+    border-top-color: #000;
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body class="antialiased text-[#1a1a1a] bg-white">
+
+<!-- Export Overlay -->
+<div id="export-overlay">
+  <div class="export-box">
+    <button id="exp-close" onclick="closeExport()">×</button>
+    <h2>Export GPS Data</h2>
+    <div class="sub">Latitude / longitude history → Excel</div>
+    <div class="ef-row">
+      <div class="ef"><label>From</label><input type="datetime-local" id="exp-from"></div>
+      <div class="ef"><label>To</label><input type="datetime-local" id="exp-to"></div>
+    </div>
+    <div class="ef-row">
+      <div class="ef"><label>Fleet</label>
+        <select id="exp-fleet"><option value="ALL">All Fleets</option><option value="DLX">DLX</option><option value="DMT">DMT</option><option value="OT">OT</option></select>
+      </div>
+      <div class="ef"><label>Vehicle # (optional)</label><input type="text" id="exp-vehicle" placeholder="e.g. 197"></div>
+    </div>
+    <div class="export-actions">
+      <button id="exp-trips" onclick="exportTrips()">Trips → Excel</button>
+      <button id="exp-history" onclick="exportHistory()">Snapshots → Excel</button>
+      <button id="exp-current" onclick="exportCurrent()">Current view</button>
+    </div>
+    <div id="exp-status"></div>
+    <div style="font-family:'JetBrains Mono',monospace;font-size:9px;color:#9ca3af;margin-top:8px;line-height:1.5">
+      <b style="color:#1a1a1a">Trips</b> — pulls start/end GPS, addresses, driver, distance directly from Lytx (up to 60 days)<br>
+      <b style="color:#1a1a1a">Snapshots</b> — pulls from your 30-min backup log in Supabase<br>
+      <b style="color:#1a1a1a">Current</b> — instant export of live positions
+    </div>
+  </div>
+</div>
+
+<!-- Header -->
+<div id="top-bar">
+  <a href="index.html" class="back-btn" title="Back to Hub">
+    <i class="ph-bold ph-arrow-left text-[15px]"></i>
+  </a>
+  <div class="logo-sq">L</div>
+  <div>
+    <div class="page-id">Lot Map</div>
+    <div class="page-sub">Fleet GPS · Live</div>
+  </div>
+  <div class="hdr-right">
+    <div class="status-dot" id="status-indicator"></div>
+    <span id="status-text">Loading…</span>
+    <button class="hdr-btn" onclick="refresh()" id="refresh-btn">
+      <i class="ph-bold ph-arrow-clockwise text-[11px]"></i> Refresh
+    </button>
+    <button class="hdr-btn accent" onclick="openExport()">
+      <i class="ph-bold ph-download-simple text-[11px]"></i> Export
+    </button>
+  </div>
+</div>
+
+<!-- Filter Bar -->
+<div id="filter-bar">
+  <span class="filter-label">Show</span>
+  <button class="fbtn active" data-filter="all" onclick="setFilter('all',this)">All</button>
+  <button class="fbtn" data-filter="lot" onclick="setFilter('lot',this)">In Lot</button>
+  <button class="fbtn" data-filter="road" onclick="setFilter('road',this)">On Road</button>
+  <div class="sep"></div>
+  <span class="filter-label">Fleet</span>
+  <button class="fbtn fleet-dlx active" data-fleet="DLX" onclick="toggleFleet('DLX',this)">DLX</button>
+  <button class="fbtn fleet-dmt active" data-fleet="DMT" onclick="toggleFleet('DMT',this)">DMT</button>
+  <button class="fbtn fleet-ot active" data-fleet="OT" onclick="toggleFleet('OT',this)">OT</button>
+  <button id="lot-toggle" class="on" onclick="toggleLotCircle()">
+    <i class="ph ph-crosshair text-[11px]"></i> Lot Zone
+  </button>
+</div>
+
+<!-- Main -->
+<div id="main">
+  <div id="sidebar">
+    <div id="sidebar-header">
+      <div class="stat lot"><span class="n" id="s-lot">—</span><span class="l">In Lot</span></div>
+      <div class="stat dlx"><span class="n" id="s-dlx">—</span><span class="l">DLX</span></div>
+      <div class="stat dmt"><span class="n" id="s-dmt">—</span><span class="l">DMT</span></div>
+      <div class="stat ot"><span class="n" id="s-ot">—</span><span class="l">OT</span></div>
+    </div>
+    <div id="vehicle-list"></div>
+  </div>
+  <div id="map-wrap">
+    <div id="map"></div>
+    <div id="loading"><div class="spinner"></div></div>
+    <div id="detail-panel">
+      <button id="detail-close" onclick="closeDetail()">×</button>
+      <div class="detail-head">
+        <span class="fleet-tag" id="d-fleet">—</span>
+        <span class="detail-name" id="d-name">—</span>
+      </div>
+      <div class="detail-group" id="d-group">—</div>
+      <div class="detail-row"><span class="dk">Speed</span><span class="dv" id="d-speed">—</span></div>
+      <div class="detail-row"><span class="dk">Status</span><span class="dv" id="d-status">—</span></div>
+      <div class="detail-row"><span class="dk">VIN</span><span class="dv" id="d-vin" style="font-size:9px">—</span></div>
+      <div class="detail-row"><span class="dk">Serial</span><span class="dv" id="d-serial" style="font-size:10px">—</span></div>
+      <div class="detail-row"><span class="dk">Last GPS</span><span class="dv" id="d-time" style="font-size:9px">—</span></div>
+      <div id="d-address-wrap">
+        <div id="d-address" class="loading">—</div>
+        <div class="copy-row">
+          <button class="copy-btn" onclick="copyAddress()">📋 Copy Address</button>
+          <button class="copy-btn" onclick="copyCoords()">📍 Copy Coords</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ─── Config ──────────────────────────────────────────────────────────────────
+const PROXY = 'https://lytx-proxy.oregontaxieugene.workers.dev';
+const LOT_LAT = 44.06008, LOT_LNG = -123.07620, LOT_RADIUS_M = 130;
+
+// ─── State ───────────────────────────────────────────────────────────────────
+let allVehicles=[], currentFilter='all', selectedId=null;
+let fleetOn={DLX:true,DMT:true,OT:true};
+let markers={}, lotCircle=null, showLotCircle=true, autoTimer=null;
+
+// ─── Map ─────────────────────────────────────────────────────────────────────
+const map=L.map('map',{zoomControl:false}).setView([LOT_LAT,LOT_LNG],18);
+L.control.zoom({position:'topright'}).addTo(map);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap',maxZoom:20}).addTo(map);
+
+function drawLotCircle(){
+  if(lotCircle){map.removeLayer(lotCircle);lotCircle=null;}
+  if(!showLotCircle)return;
+  lotCircle=L.circle([LOT_LAT,LOT_LNG],{radius:LOT_RADIUS_M,color:'rgba(16,185,129,.5)',
+    fillColor:'rgba(16,185,129,.04)',fillOpacity:1,weight:1.5,dashArray:'6 4'}).addTo(map);
+}
+drawLotCircle();
+function toggleLotCircle(){showLotCircle=!showLotCircle;
+  const el=document.getElementById('lot-toggle');
+  el.className=showLotCircle?'on':'';drawLotCircle();}
+
+// ─── Geo helpers ─────────────────────────────────────────────────────────────
+function haversineM(a,b,c,d){const R=6371000,x=(c-a)*Math.PI/180,y=(d-b)*Math.PI/180,
+  q=Math.sin(x/2)**2+Math.cos(a*Math.PI/180)*Math.cos(c*Math.PI/180)*Math.sin(y/2)**2;
+  return R*2*Math.atan2(Math.sqrt(q),Math.sqrt(1-q));}
+function isInLot(v){const p=v.points?.[0];if(!p)return false;
+  return haversineM(p.latitude,p.longitude,LOT_LAT,LOT_LNG)<=LOT_RADIUS_M && p.speedms<1;}
+
+// ─── Fetch ───────────────────────────────────────────────────────────────────
+async function load(){
+  showLoading(true); setStatus('loading','Fetching…');
+  try{
+    const res=await fetch(`${PROXY}/gps`);
+    if(!res.ok)throw new Error('fetch');
+    const d=await res.json();
+    allVehicles=d.data||[];
+    render();
+    setStatus('live',`Updated ${new Date().toLocaleTimeString()} · ${allVehicles.length} vehicles`);
+  }catch(e){ setStatus('error','Fetch error — check worker URL'); }
+  finally{ showLoading(false); }
+}
+function refresh(){const b=document.getElementById('refresh-btn');b.disabled=true;
+  load().finally(()=>setTimeout(()=>b.disabled=false,2000));}
+function startAuto(){clearInterval(autoTimer);autoTimer=setInterval(load,60000);}
+
+// ─── Render ──────────────────────────────────────────────────────────────────
+function visible(v){
+  if(!fleetOn[v.fleet])return false;
+  if(currentFilter==='lot')return isInLot(v);
+  if(currentFilter==='road')return !isInLot(v);
+  return true;
+}
+function statusColor(v){const p=v.points?.[0];if(!p)return '#9ca3af';
+  if(isInLot(v))return '#10b981';
+  if(p.speedms>0.5)return '#d97706';
+  return '#06b6d4';}
+
+function render(){
+  const shown=allVehicles.filter(visible);
+  const lot=allVehicles.filter(v=>isInLot(v)&&fleetOn[v.fleet]);
+  document.getElementById('s-lot').textContent=lot.length;
+  document.getElementById('s-dlx').textContent=allVehicles.filter(v=>v.fleet==='DLX').length;
+  document.getElementById('s-dmt').textContent=allVehicles.filter(v=>v.fleet==='DMT').length;
+  document.getElementById('s-ot').textContent=allVehicles.filter(v=>v.fleet==='OT').length;
+  renderSidebar(shown);
+  renderMarkers(shown);
+}
+
+function renderSidebar(shown){
+  const sorted=[...shown].sort((a,b)=>{
+    const al=isInLot(a),bl=isInLot(b);
+    if(al&&!bl)return -1;if(!al&&bl)return 1;
+    return(a.vehicleName||'').localeCompare(b.vehicleName||'',undefined,{numeric:true});
+  });
+  const list=document.getElementById('vehicle-list');list.innerHTML='';
+  sorted.forEach(v=>{
+    const p=v.points?.[0];const mph=p?p.speedms*2.23694:0;const lot=isInLot(v);
+    const el=document.createElement('div');
+    el.className='vehicle-item'+(lot?'':' on-road')+(selectedId===v.vehicleId?' selected':'');
+    el.innerHTML=`<span class="fleet-tag ${v.fleet}">${v.fleet}</span>
+      <div class="vehicle-dot" style="background:${statusColor(v)}"></div>
+      <span class="vehicle-name">${v.vehicleName||'?'}</span>
+      <span class="vehicle-speed ${mph>1?'moving':''}">${mph>1?mph.toFixed(0)+'mph':'parked'}</span>`;
+    el.onclick=()=>selectVehicle(v);
+    list.appendChild(el);
+  });
+}
+
+function renderMarkers(shown){
+  const ids=new Set(shown.map(v=>v.vehicleId));
+  Object.keys(markers).forEach(id=>{if(!ids.has(id)){map.removeLayer(markers[id]);delete markers[id];}});
+  shown.forEach(v=>{
+    const p=v.points?.[0];if(!p)return;
+    const ll=[p.latitude,p.longitude];
+    const html=`<div class="lot-pill f-${v.fleet} ${selectedId===v.vehicleId?'sel':''}">
+        <span class="sdot" style="background:${statusColor(v)}"></span>
+        <span class="pn">${v.vehicleName||'?'}</span></div>`;
+    const icon=L.divIcon({html,className:'',iconSize:[0,0]});
+    if(markers[v.vehicleId]){
+      markers[v.vehicleId].setLatLng(ll);
+      markers[v.vehicleId].setIcon(icon);
+    }else{
+      const m=L.marker(ll,{icon}).addTo(map);
+      m.on('click',()=>selectVehicle(v));
+      markers[v.vehicleId]=m;
+    }
+  });
+}
+
+// ─── Selection ───────────────────────────────────────────────────────────────
+function selectVehicle(v){
+  selectedId=v.vehicleId; const p=v.points?.[0]; if(!p)return;
+  const lot=isInLot(v);
+  map.flyTo([p.latitude,p.longitude],Math.max(map.getZoom(),18),{animate:true,duration:.7});
+  const mph=p.speedms*2.23694;const ts=p.timeInUtc?new Date(p.timeInUtc).toLocaleString():'—';
+  document.getElementById('d-fleet').textContent=v.fleet;
+  document.getElementById('d-fleet').className='fleet-tag '+v.fleet;
+  document.getElementById('d-name').textContent=v.vehicleName||'—';
+  document.getElementById('d-group').textContent=v.groupName||'—';
+  const se=document.getElementById('d-speed');se.textContent=mph>0.5?mph.toFixed(1)+' mph':'0 mph';
+  se.className='dv'+(mph>1?' fast':'');
+  const st=document.getElementById('d-status');st.textContent=lot?'In Lot':(mph>0.5?'Moving':'Parked (away)');
+  st.className='dv'+(lot?' parked':'');
+  document.getElementById('d-vin').textContent=v.vin||'—';
+  document.getElementById('d-serial').textContent=v.serialNumber||'—';
+  document.getElementById('d-time').textContent=ts;
+  document.getElementById('detail-panel').classList.add('visible');
+  reverseGeocode(p.latitude,p.longitude,v.vehicleId);
+  render();
+}
+function closeDetail(){document.getElementById('detail-panel').classList.remove('visible');
+  selectedId=null;render();}
+
+// ─── Filters ─────────────────────────────────────────────────────────────────
+function setFilter(f,btn){currentFilter=f;
+  document.querySelectorAll('.fbtn[data-filter]').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');render();}
+function toggleFleet(fleet,btn){fleetOn[fleet]=!fleetOn[fleet];
+  btn.classList.toggle('active',fleetOn[fleet]);render();}
+
+// ─── UI ──────────────────────────────────────────────────────────────────────
+function setStatus(s,m){const i=document.getElementById('status-indicator');
+  i.className='status-dot'+(s==='live'?' live':(s==='error'?' error':''));
+  document.getElementById('status-text').textContent=m;}
+function showLoading(v){document.getElementById('loading').style.display=v?'flex':'none';}
+
+// ─── PST timestamp helper ────────────────────────────────────────────────────
+function toPST(utcStr){
+  if(!utcStr)return '—';
+  try{
+    return new Date(utcStr).toLocaleString('en-US',{timeZone:'America/Los_Angeles',
+      year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false})
+      +' PST';
+  }catch{return utcStr;}
+}
+
+// ─── Reverse geocoding ──────────────────────────────────────────────────────
+let lastGeocodedId=null, lastAddress='', lastCoords='';
+async function reverseGeocode(lat,lng,vehicleId){
+  const el=document.getElementById('d-address');
+  el.className='loading';el.textContent='Looking up address…';
+  lastGeocodedId=vehicleId;
+  lastCoords=`${lat.toFixed(6)}, ${lng.toFixed(6)}`;
+  try{
+    const res=await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&addressdetails=1`,
+      {headers:{'User-Agent':'OregonTaxi-LotMap/1.0'}});
+    if(!res.ok)throw new Error();
+    const d=await res.json();
+    const a=d.address||{};
+    const parts=[a.house_number,a.road].filter(Boolean);
+    const city=a.city||a.town||a.village||a.hamlet||'';
+    const state=a.state||'';const zip=a.postcode||'';
+    lastAddress=[parts.join(' '),city,state,zip].filter(Boolean).join(', ');
+    if(lastGeocodedId===vehicleId){el.className='';el.textContent=lastAddress||d.display_name||'Unknown';}
+  }catch{
+    lastAddress=lastCoords;
+    if(lastGeocodedId===vehicleId){el.className='';el.textContent='Address unavailable — coords copied instead';}
+  }
+}
+function copyAddress(){
+  const text=lastAddress||lastCoords;
+  navigator.clipboard.writeText(text).then(()=>{
+    const btns=document.querySelectorAll('.copy-btn');
+    btns[0].classList.add('copied');btns[0].textContent='✓ Copied';
+    setTimeout(()=>{btns[0].classList.remove('copied');btns[0].textContent='📋 Copy Address';},1500);
+  });
+}
+function copyCoords(){
+  navigator.clipboard.writeText(lastCoords).then(()=>{
+    const btns=document.querySelectorAll('.copy-btn');
+    btns[1].classList.add('copied');btns[1].textContent='✓ Copied';
+    setTimeout(()=>{btns[1].classList.remove('copied');btns[1].textContent='📍 Copy Coords';},1500);
+  });
+}
+
+// ─── Export ──────────────────────────────────────────────────────────────────
+function fmtLocal(d){const z=n=>String(n).padStart(2,'0');
+  return `${d.getFullYear()}-${z(d.getMonth()+1)}-${z(d.getDate())}T${z(d.getHours())}:${z(d.getMinutes())}`;}
+function openExport(){
+  const now=new Date(), yest=new Date(now.getTime()-24*3600*1000);
+  document.getElementById('exp-from').value=fmtLocal(yest);
+  document.getElementById('exp-to').value=fmtLocal(now);
+  document.getElementById('exp-status').textContent='';
+  document.getElementById('exp-status').className='';
+  document.getElementById('export-overlay').classList.add('visible');
+}
+function closeExport(){document.getElementById('export-overlay').classList.remove('visible');}
+function expStatus(msg,err){const e=document.getElementById('exp-status');e.textContent=msg;e.className=err?'err':'';}
+
+function downloadXlsx(rows,filename,sheet){
+  if(!rows.length){expStatus('No rows to export for that range.',true);return;}
+  const ws=XLSX.utils.json_to_sheet(rows);
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,ws,sheet);
+  XLSX.writeFile(wb,filename);
+}
+
+async function exportTrips(){
+  const btn=document.getElementById('exp-trips');btn.disabled=true;
+  expStatus('Fetching trips from Lytx…');
+  try{
+    const from=document.getElementById('exp-from').value;
+    const to=document.getElementById('exp-to').value;
+    const qs=new URLSearchParams();
+    if(from)qs.set('startDate',new Date(from).toISOString());
+    if(to)qs.set('endDate',new Date(to).toISOString());
+    const res=await fetch(`${PROXY}/trips?${qs.toString()}`);
+    if(!res.ok)throw new Error('trips fetch failed');
+    const d=await res.json();
+    const fleet=document.getElementById('exp-fleet').value;
+    const vehicle=document.getElementById('exp-vehicle').value.trim();
+    let trips=d.data||[];
+    if(fleet&&fleet!=='ALL')trips=trips.filter(t=>t.fleet===fleet);
+    if(vehicle)trips=trips.filter(t=>t.vehicle?.vehicleName===vehicle);
+    const rows=trips.map(t=>({
+      Fleet:t.fleet,Vehicle:t.vehicle?.vehicleName,
+      Driver:`${t.driver?.firstName||''} ${t.driver?.lastName||''}`.trim()||'—',
+      VIN:t.vehicle?.vin,'License Plate':t.vehicle?.licensePlate,
+      'Start Time (PST)':toPST(t.startTime),'End Time (PST)':toPST(t.endTime),
+      'Start Lat':t.startPosition?.latitude,'Start Lng':t.startPosition?.longitude,
+      'Start Address':t.startPosition?.address,
+      'End Lat':t.endPosition?.latitude,'End Lng':t.endPosition?.longitude,
+      'End Address':t.endPosition?.address,
+      'Distance (km)':t.deviceDistanceKm||t.distanceKm,
+      'Max Speed (kph)':t.maxSpeedKph,Group:t.vehicle?.groupName
+    }));
+    const stamp=new Date().toISOString().slice(0,16).replace(/[:T]/g,'-');
+    downloadXlsx(rows,`lytx-trips-${stamp}.xlsx`,'Trips');
+    expStatus(`Exported ${rows.length} trips.`);
+  }catch(e){expStatus('Trip export failed — check worker /trips route.',true);}
+  finally{btn.disabled=false;}
+}
+
+async function exportHistory(){
+  const btn=document.getElementById('exp-history');btn.disabled=true;
+  expStatus('Querying history…');
+  try{
+    const from=document.getElementById('exp-from').value;
+    const to=document.getElementById('exp-to').value;
+    const fleet=document.getElementById('exp-fleet').value;
+    const vehicle=document.getElementById('exp-vehicle').value.trim();
+    const qs=new URLSearchParams();
+    if(from)qs.set('from',new Date(from).toISOString());
+    if(to)qs.set('to',new Date(to).toISOString());
+    if(fleet)qs.set('fleet',fleet);
+    if(vehicle)qs.set('vehicle',vehicle);
+    const res=await fetch(`${PROXY}/history?${qs.toString()}`);
+    if(!res.ok)throw new Error('history fetch failed');
+    const d=await res.json();
+    const rows=(d.data||[]).map(r=>({
+      'Captured (PST)':toPST(r.captured_at),Fleet:r.fleet,Vehicle:r.vehicle_name,Group:r.group_name,
+      VIN:r.vin,Serial:r.serial_number,Latitude:r.latitude,Longitude:r.longitude,
+      'Speed (mph)':r.speed_mph,Heading:r.heading,'GPS Fix Time (PST)':toPST(r.point_time)
+    }));
+    const stamp=new Date().toISOString().slice(0,16).replace(/[:T]/g,'-');
+    downloadXlsx(rows,`gps-history-${stamp}.xlsx`,'GPS History');
+    expStatus(`Exported ${rows.length} rows.`);
+  }catch(e){expStatus('Export failed — check worker /history + Supabase.',true);}
+  finally{btn.disabled=false;}
+}
+
+function exportCurrent(){
+  const rows=allVehicles.filter(v=>fleetOn[v.fleet]).map(v=>{
+    const p=v.points?.[0]||{};
+    return {
+      'Captured (PST)':toPST(new Date().toISOString()),Fleet:v.fleet,Vehicle:v.vehicleName,
+      Group:v.groupName,VIN:v.vin,Serial:v.serialNumber,
+      Latitude:p.latitude,Longitude:p.longitude,
+      'Speed (mph)':p.speedms!=null?+(p.speedms*2.23694).toFixed(2):null,
+      Heading:p.heading??'',Status:isInLot(v)?'In Lot':(p.speedms>0.5?'Moving':'Parked'),
+      'GPS Fix Time (PST)':toPST(p.timeInUtc)
+    };
+  });
+  const stamp=new Date().toISOString().slice(0,16).replace(/[:T]/g,'-');
+  downloadXlsx(rows,`gps-current-${stamp}.xlsx`,'Current Positions');
+  expStatus(`Exported ${rows.length} current positions.`);
+}
+
+// ─── Go ──────────────────────────────────────────────────────────────────────
+load(); startAuto();
+</script>
+</body>
+</html>

@@ -1,0 +1,767 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>WC Tracker — DMT / DLX</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://unpkg.com/@phosphor-icons/web"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@600;700&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+  body { font-family: 'Inter', sans-serif; }
+  .display-font { font-family: 'Inter Tight', sans-serif; }
+  .mono-font { font-family: 'JetBrains Mono', monospace; }
+  .custom-scroll::-webkit-scrollbar { width: 4px; }
+  .custom-scroll::-webkit-scrollbar-track { background: transparent; }
+  .custom-scroll::-webkit-scrollbar-thumb { background: #e5e7eb; border-radius: 9px; }
+
+  /* sidebar nav active */
+  .nav-btn.active { background: #f3f4f6; color: #111; }
+  /* bottom tab active */
+  .tab-btn.active { color: #D97757; }
+  .tab-btn.active .tab-icon { color: #D97757; }
+
+  .chair-pill { transition: border-color .15s, background .15s; -webkit-tap-highlight-color: transparent; }
+  .chair-pill.selected { border-color: #D97757 !important; background: #fff5f2 !important; }
+
+  .view { display: none; }
+  .view.active { display: block; }
+
+  .spinner {
+    width: 24px; height: 24px;
+    border: 2px solid #e5e7eb; border-top-color: #111;
+    border-radius: 50%;
+    animation: spin .7s linear infinite;
+    margin: 32px auto;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* Log cards on mobile instead of table */
+  .log-card { display: none; }
+  .log-table-wrap { display: block; }
+  @media (max-width: 639px) {
+    .log-card { display: block; }
+    .log-table-wrap { display: none; }
+  }
+
+  /* Larger tap targets on mobile inputs */
+  @media (max-width: 639px) {
+    input, select { font-size: 16px !important; /* prevents iOS zoom */ }
+  }
+
+  @media print {
+    #sidebar, #bottom-nav, .topbar, #view-scan, #view-overview, #view-log, #view-admin { display: none !important; }
+    #view-qr { display: block !important; }
+    .print-hide { display: none !important; }
+    body { background: #fff; }
+  }
+</style>
+</head>
+<body class="antialiased text-[#1a1a1a] bg-white">
+
+<!-- ════════════════════════════════════
+     LAYOUT SHELL
+════════════════════════════════════ -->
+<div class="flex h-screen overflow-hidden">
+
+  <!-- ══ SIDEBAR (md+) ══ -->
+  <aside id="sidebar" class="hidden md:flex flex-col flex-shrink-0 w-60 bg-white border-r border-gray-200 z-30">
+    <div class="flex items-center px-5 h-[64px] border-b border-gray-200 flex-shrink-0">
+      <div class="w-7 h-7 bg-black text-white rounded-[4px] flex items-center justify-center font-bold text-xs">♿</div>
+      <span class="ml-3 text-[15px] font-semibold tracking-tight display-font">WC Tracker</span>
+    </div>
+    <div class="flex-1 overflow-y-auto custom-scroll p-3 space-y-1">
+      <div class="mono-font text-[9px] font-bold text-gray-400 uppercase tracking-[0.14em] mb-2 px-2 pt-3">Workspace</div>
+      <button onclick="showView('scan')"     id="nav-scan"     class="nav-btn active w-full flex items-center p-2 rounded-md hover:bg-gray-100 text-gray-700 hover:text-black transition-colors group"><i class="ph-bold ph-qr-code text-[17px] opacity-75 group-hover:opacity-100"></i><span class="ml-2.5 text-[13px] font-medium">Scan / Action</span></button>
+      <button onclick="showView('overview')" id="nav-overview" class="nav-btn w-full flex items-center p-2 rounded-md hover:bg-gray-100 text-gray-700 hover:text-black transition-colors group"><i class="ph-bold ph-grid-four text-[17px] opacity-75 group-hover:opacity-100"></i><span class="ml-2.5 text-[13px] font-medium">Shed Status</span></button>
+      <button onclick="showView('log')"      id="nav-log"      class="nav-btn w-full flex items-center p-2 rounded-md hover:bg-gray-100 text-gray-700 hover:text-black transition-colors group"><i class="ph-bold ph-clipboard-text text-[17px] opacity-75 group-hover:opacity-100"></i><span class="ml-2.5 text-[13px] font-medium">Event Log</span></button>
+      <button onclick="showView('qr')"       id="nav-qr"       class="nav-btn w-full flex items-center p-2 rounded-md hover:bg-gray-100 text-gray-700 hover:text-black transition-colors group"><i class="ph-bold ph-printer text-[17px] opacity-75 group-hover:opacity-100"></i><span class="ml-2.5 text-[13px] font-medium">Print QR</span></button>
+      <button onclick="showView('admin')"    id="nav-admin"    class="nav-btn w-full flex items-center p-2 rounded-md hover:bg-gray-100 text-gray-700 hover:text-black transition-colors group"><i class="ph-bold ph-gear text-[17px] opacity-75 group-hover:opacity-100"></i><span class="ml-2.5 text-[13px] font-medium">Admin</span></button>
+    </div>
+    <div class="p-3.5 border-t border-gray-200 flex items-center gap-2">
+      <div class="w-7 h-7 rounded-md bg-[#D97757] flex items-center justify-center text-white font-bold text-[10px]">DLX</div>
+      <div class="flex flex-col">
+        <span class="text-[11px] font-semibold text-black leading-tight">DMT / DLX</span>
+        <span class="mono-font text-[9px] uppercase tracking-[0.14em] text-gray-400">Fleet Tools</span>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ══ MAIN COLUMN ══ -->
+  <main class="flex-1 flex flex-col h-full overflow-hidden bg-[#faf9f8] min-w-0">
+
+    <!-- Topbar -->
+    <div class="topbar flex items-center gap-3 px-4 md:px-8 py-3 border-b border-gray-200 bg-[#faf9f8] sticky top-0 z-10">
+      <div class="mono-font text-[10px] tracking-[0.14em] uppercase text-gray-400 flex items-center gap-1.5 min-w-0">
+        <span class="hidden sm:inline">Hub /</span>
+        <span id="crumb-current" class="text-black font-semibold truncate">Scan / Action</span>
+      </div>
+      <div class="flex-1"></div>
+      <!-- Stats strip -->
+      <div class="flex items-center gap-2 mono-font text-[10px] uppercase tracking-wider">
+        <span class="hidden sm:inline text-gray-400">Chairs:</span>
+        <span id="tb-total" class="text-black font-bold">—</span>
+        <span class="text-gray-300">·</span>
+        <span id="tb-out" class="text-[#D97757] font-bold">—</span>
+        <span class="text-gray-300 hidden sm:inline">out</span>
+        <span class="text-gray-300">·</span>
+        <span id="tb-in" class="text-emerald-600 font-bold">—</span>
+        <span class="text-gray-300 hidden sm:inline">in</span>
+      </div>
+      <button onclick="loadData().then(renderScanView)" class="text-gray-400 hover:text-black transition-colors ml-1" title="Refresh">
+        <i class="ph-bold ph-arrows-clockwise text-base"></i>
+      </button>
+    </div>
+
+    <!-- Scrollable content -->
+    <div class="flex-1 overflow-y-auto custom-scroll pb-20 md:pb-6">
+      <div class="p-4 md:p-8 max-w-4xl mx-auto">
+
+        <!-- ════════════════════════════
+             SCAN / ACTION
+        ════════════════════════════ -->
+        <div id="view-scan" class="view active">
+          <header class="mb-6 pb-4 border-b border-gray-200">
+            <div class="mono-font text-[10px] tracking-[0.14em] uppercase text-gray-500 mb-1">Fleet · Wheelchair management</div>
+            <h1 class="display-font text-[28px] md:text-[36px] font-semibold text-black tracking-tight leading-none">Check Out / In.</h1>
+            <p class="mono-font text-[10px] tracking-[0.12em] uppercase text-gray-400 mt-1.5">Select a chair, enter your info, then submit.</p>
+          </header>
+
+          <!-- Chair grid -->
+          <div class="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-[0_1px_3px_rgba(0,0,0,0.02)] mb-4">
+            <div class="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
+              <span class="mono-font text-[10px] font-bold text-gray-400 uppercase tracking-[0.14em]">Select Wheelchair</span>
+            </div>
+            <div id="chair-selector" class="p-3 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2.5">
+              <div class="col-span-full"><div class="spinner"></div></div>
+            </div>
+          </div>
+
+          <!-- Selected bar -->
+          <div id="selected-bar" class="hidden mb-4 bg-[#fff5f2] border border-[#D97757]/30 rounded-xl px-4 py-3 flex items-center gap-3">
+            <div class="flex-1 min-w-0">
+              <div class="mono-font text-[15px] font-bold text-[#D97757]" id="scb-id">—</div>
+              <div class="text-[12px] text-gray-500 mt-0.5 truncate" id="scb-label">—</div>
+            </div>
+            <div class="flex items-center gap-2 flex-shrink-0">
+              <span id="scb-dot" class="w-2 h-2 rounded-full bg-gray-300"></span>
+              <span class="mono-font text-[10px] uppercase tracking-widest font-bold" id="scb-status-text">—</span>
+            </div>
+          </div>
+
+          <!-- Driver info form -->
+          <div class="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-[0_1px_3px_rgba(0,0,0,0.02)] mb-4">
+            <div class="px-4 py-3 border-b border-gray-100">
+              <span class="mono-font text-[10px] font-bold text-gray-400 uppercase tracking-[0.14em]">Driver Info</span>
+            </div>
+            <div class="p-4 space-y-3">
+              <div>
+                <label class="block mono-font text-[10px] tracking-widest text-gray-500 uppercase mb-1.5">Driver Ref #</label>
+                <input type="text" id="driver-ref" placeholder="e.g. D-042" autocomplete="off" inputmode="text"
+                  class="w-full rounded-lg border border-gray-200 px-3 py-3 text-[14px] mono-font focus:outline-none focus:border-black transition-colors bg-gray-50 focus:bg-white">
+              </div>
+              <div>
+                <label class="block mono-font text-[10px] tracking-widest text-gray-500 uppercase mb-1.5">Vehicle Number</label>
+                <input type="text" id="vehicle-num" placeholder="e.g. V-18" autocomplete="off" inputmode="text"
+                  class="w-full rounded-lg border border-gray-200 px-3 py-3 text-[14px] mono-font focus:outline-none focus:border-black transition-colors bg-gray-50 focus:bg-white">
+              </div>
+              <div>
+                <label class="block mono-font text-[10px] tracking-widest text-gray-500 uppercase mb-1.5">Notes <span class="normal-case text-gray-400">(optional)</span></label>
+                <input type="text" id="event-notes" placeholder="Condition, damage flag, etc." autocomplete="off"
+                  class="w-full rounded-lg border border-gray-200 px-3 py-3 text-[14px] focus:outline-none focus:border-black transition-colors bg-gray-50 focus:bg-white">
+              </div>
+            </div>
+          </div>
+
+          <!-- Status -->
+          <div id="action-status" class="hidden mb-4 px-4 py-3 rounded-xl text-[13px] font-medium border"></div>
+
+          <!-- Action buttons — big tap targets -->
+          <div class="grid grid-cols-2 gap-3">
+            <button id="btn-checkout" onclick="submitEvent('checkout')" disabled
+              class="bg-black hover:bg-[#222] active:bg-[#333] text-white font-semibold py-4 px-4 rounded-xl transition-colors flex items-center justify-center gap-2 disabled:opacity-30 disabled:cursor-not-allowed text-[14px]">
+              <i class="ph-bold ph-arrow-up-right text-lg"></i>
+              <span>Check Out</span>
+            </button>
+            <button id="btn-checkin" onclick="submitEvent('checkin')" disabled
+              class="bg-[#D97757] hover:bg-[#c96a45] active:bg-[#b85d3a] text-white font-semibold py-4 px-4 rounded-xl transition-colors flex items-center justify-center gap-2 disabled:opacity-30 disabled:cursor-not-allowed text-[14px]">
+              <i class="ph-bold ph-arrow-down-left text-lg"></i>
+              <span>Check In</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- ════════════════════════════
+             SHED OVERVIEW
+        ════════════════════════════ -->
+        <div id="view-overview" class="view">
+          <header class="mb-6 pb-4 border-b border-gray-200 flex items-end justify-between">
+            <div>
+              <div class="mono-font text-[10px] tracking-[0.14em] uppercase text-gray-500 mb-1">Fleet · Live status</div>
+              <h1 class="display-font text-[28px] md:text-[36px] font-semibold text-black tracking-tight leading-none">Shed Status.</h1>
+            </div>
+            <button onclick="loadData().then(renderOverview)" class="flex items-center gap-1.5 bg-white border border-gray-200 rounded-lg px-3 py-2 text-[12px] font-medium hover:border-black transition-colors flex-shrink-0">
+              <i class="ph-bold ph-arrows-clockwise text-sm"></i><span class="hidden sm:inline">Refresh</span>
+            </button>
+          </header>
+
+          <div class="grid grid-cols-3 gap-3 mb-6">
+            <div class="bg-white border border-gray-200 rounded-xl p-4 shadow-[0_1px_3px_rgba(0,0,0,0.02)]">
+              <div class="display-font text-[26px] font-bold text-black" id="ov-total">—</div>
+              <div class="mono-font text-[9px] uppercase tracking-widest text-gray-400 mt-1">Total</div>
+            </div>
+            <div class="bg-white border border-orange-200 rounded-xl p-4 shadow-[0_1px_3px_rgba(0,0,0,0.02)]">
+              <div class="display-font text-[26px] font-bold text-[#D97757]" id="ov-out-count">—</div>
+              <div class="mono-font text-[9px] uppercase tracking-widest text-gray-400 mt-1">Out</div>
+            </div>
+            <div class="bg-white border border-emerald-100 rounded-xl p-4 shadow-[0_1px_3px_rgba(0,0,0,0.02)]">
+              <div class="display-font text-[26px] font-bold text-emerald-600" id="ov-in-count">—</div>
+              <div class="mono-font text-[9px] uppercase tracking-widest text-gray-400 mt-1">In Shed</div>
+            </div>
+          </div>
+
+          <div class="mono-font text-[9px] font-bold text-gray-400 uppercase tracking-[0.14em] mb-3 flex items-center gap-3">Checked Out <span class="flex-1 h-px bg-gray-200"></span></div>
+          <div id="ov-out" class="space-y-2 mb-6"></div>
+
+          <div class="mono-font text-[9px] font-bold text-gray-400 uppercase tracking-[0.14em] mb-3 flex items-center gap-3">In Shed <span class="flex-1 h-px bg-gray-200"></span></div>
+          <div id="ov-in" class="grid grid-cols-2 sm:grid-cols-3 gap-2"></div>
+        </div>
+
+        <!-- ════════════════════════════
+             EVENT LOG
+        ════════════════════════════ -->
+        <div id="view-log" class="view">
+          <header class="mb-6 pb-4 border-b border-gray-200">
+            <div class="mono-font text-[10px] tracking-[0.14em] uppercase text-gray-500 mb-1">Operations · Audit trail</div>
+            <h1 class="display-font text-[28px] md:text-[36px] font-semibold text-black tracking-tight leading-none">Event Log.</h1>
+          </header>
+
+          <!-- Filters -->
+          <div class="space-y-2 mb-4">
+            <div class="relative">
+              <i class="ph ph-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm"></i>
+              <input type="text" id="log-search" oninput="filterLog()" placeholder="Search driver, chair, vehicle…"
+                class="w-full bg-white border border-gray-200 rounded-lg pl-9 pr-3 py-3 text-[14px] focus:border-black focus:outline-none">
+            </div>
+            <div class="grid grid-cols-2 gap-2">
+              <select id="log-type" onchange="filterLog()" class="bg-white border border-gray-200 rounded-lg px-3 py-2.5 text-[12px] mono-font focus:border-black focus:outline-none">
+                <option value="">All Events</option>
+                <option value="checkout">Check Out</option>
+                <option value="checkin">Check In</option>
+              </select>
+              <select id="log-chair" onchange="filterLog()" class="bg-white border border-gray-200 rounded-lg px-3 py-2.5 text-[12px] mono-font focus:border-black focus:outline-none">
+                <option value="">All Chairs</option>
+              </select>
+            </div>
+            <input type="date" id="log-date" onchange="filterLog()"
+              class="w-full bg-white border border-gray-200 rounded-lg px-3 py-2.5 text-[13px] focus:border-black focus:outline-none">
+          </div>
+
+          <!-- Mobile cards -->
+          <div id="log-cards" class="log-card space-y-2"></div>
+
+          <!-- Desktop table -->
+          <div class="log-table-wrap bg-white border border-gray-200 rounded-xl overflow-hidden shadow-[0_1px_3px_rgba(0,0,0,0.02)]">
+            <div class="overflow-x-auto">
+              <table class="w-full text-left">
+                <thead>
+                  <tr class="bg-gray-50/50 border-b border-gray-200 mono-font text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                    <th class="px-4 py-2.5">Time</th>
+                    <th class="px-4 py-2.5">Chair</th>
+                    <th class="px-4 py-2.5">Event</th>
+                    <th class="px-4 py-2.5">Driver Ref</th>
+                    <th class="px-4 py-2.5">Vehicle</th>
+                    <th class="px-4 py-2.5">Notes</th>
+                  </tr>
+                </thead>
+                <tbody id="log-tbody" class="text-[13px]">
+                  <tr><td colspan="6"><div class="spinner"></div></td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- ════════════════════════════
+             QR CODES
+        ════════════════════════════ -->
+        <div id="view-qr" class="view">
+          <header class="mb-6 pb-4 border-b border-gray-200 flex items-end justify-between">
+            <div>
+              <div class="mono-font text-[10px] tracking-[0.14em] uppercase text-gray-500 mb-1">Fleet · Labels</div>
+              <h1 class="display-font text-[28px] md:text-[36px] font-semibold text-black tracking-tight leading-none">Print QR Codes.</h1>
+            </div>
+            <button onclick="window.print()" class="print-hide flex items-center gap-2 bg-black hover:bg-[#222] text-white font-semibold px-4 py-2.5 rounded-xl text-[13px] transition-colors flex-shrink-0">
+              <i class="ph-bold ph-printer"></i><span class="hidden sm:inline">Print</span>
+            </button>
+          </header>
+
+          <div class="mono-font text-[9px] font-bold text-gray-400 uppercase tracking-[0.14em] mb-3 flex items-center gap-3">Shed Door <span class="flex-1 h-px bg-gray-200"></span></div>
+          <div class="grid grid-cols-2 gap-3 mb-6">
+            <div class="bg-white border border-gray-200 rounded-xl p-4 shadow-[0_1px_3px_rgba(0,0,0,0.02)] text-center">
+              <div class="flex justify-center mb-2" id="qr-door"></div>
+              <div class="mono-font text-[11px] font-bold text-black">SHED DOOR</div>
+              <div class="text-[10px] text-gray-400 mt-0.5">Scan to open tracker</div>
+            </div>
+          </div>
+
+          <div class="mono-font text-[9px] font-bold text-gray-400 uppercase tracking-[0.14em] mb-3 flex items-center gap-3">Wheelchairs <span class="flex-1 h-px bg-gray-200"></span></div>
+          <div id="qr-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3"></div>
+        </div>
+
+        <!-- ════════════════════════════
+             ADMIN
+        ════════════════════════════ -->
+        <div id="view-admin" class="view">
+          <header class="mb-6 pb-4 border-b border-gray-200">
+            <div class="mono-font text-[10px] tracking-[0.14em] uppercase text-gray-500 mb-1">Admin · Chair registry</div>
+            <h1 class="display-font text-[28px] md:text-[36px] font-semibold text-black tracking-tight leading-none">Manage Chairs.</h1>
+          </header>
+
+          <div class="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-[0_1px_3px_rgba(0,0,0,0.02)] mb-6">
+            <div class="px-4 py-3 border-b border-gray-100">
+              <span class="mono-font text-[10px] font-bold text-gray-400 uppercase tracking-[0.14em]">Add Wheelchair</span>
+            </div>
+            <div class="p-4 space-y-3">
+              <div class="grid grid-cols-2 gap-3">
+                <div>
+                  <label class="block mono-font text-[10px] tracking-widest text-gray-500 uppercase mb-1.5">Chair ID</label>
+                  <input type="text" id="new-id" placeholder="WC-005"
+                    class="w-full rounded-lg border border-gray-200 px-3 py-3 text-[14px] mono-font focus:outline-none focus:border-black bg-gray-50 focus:bg-white transition-colors">
+                </div>
+                <div>
+                  <label class="block mono-font text-[10px] tracking-widest text-gray-500 uppercase mb-1.5">Label</label>
+                  <input type="text" id="new-label" placeholder="Blue Manual #2"
+                    class="w-full rounded-lg border border-gray-200 px-3 py-3 text-[14px] focus:outline-none focus:border-black bg-gray-50 focus:bg-white transition-colors">
+                </div>
+              </div>
+              <div class="grid grid-cols-2 gap-3">
+                <div>
+                  <label class="block mono-font text-[10px] tracking-widest text-gray-500 uppercase mb-1.5">Make</label>
+                  <input type="text" id="new-make" placeholder="Invacare"
+                    class="w-full rounded-lg border border-gray-200 px-3 py-3 text-[14px] focus:outline-none focus:border-black bg-gray-50 focus:bg-white transition-colors">
+                </div>
+                <div>
+                  <label class="block mono-font text-[10px] tracking-widest text-gray-500 uppercase mb-1.5">Model</label>
+                  <input type="text" id="new-model" placeholder="Tracer SX5"
+                    class="w-full rounded-lg border border-gray-200 px-3 py-3 text-[14px] focus:outline-none focus:border-black bg-gray-50 focus:bg-white transition-colors">
+                </div>
+              </div>
+              <div>
+                <label class="block mono-font text-[10px] tracking-widest text-gray-500 uppercase mb-1.5">Notes</label>
+                <input type="text" id="new-notes" placeholder="Folding, red handles, etc."
+                  class="w-full rounded-lg border border-gray-200 px-3 py-3 text-[14px] focus:outline-none focus:border-black bg-gray-50 focus:bg-white transition-colors">
+              </div>
+              <div id="admin-status" class="hidden px-4 py-3 rounded-xl text-[13px] font-medium border"></div>
+              <button onclick="addChair()"
+                class="w-full bg-black hover:bg-[#222] text-white font-semibold py-3.5 rounded-xl transition-colors text-[14px] flex items-center justify-center gap-2">
+                <i class="ph-bold ph-plus"></i> Add Chair
+              </button>
+            </div>
+          </div>
+
+          <div class="mono-font text-[9px] font-bold text-gray-400 uppercase tracking-[0.14em] mb-3 flex items-center gap-3">All Chairs <span class="flex-1 h-px bg-gray-200"></span></div>
+          <div id="admin-cards" class="space-y-2"></div>
+        </div>
+
+      </div><!-- /max-w -->
+    </div><!-- /scroll -->
+
+    <!-- ══ BOTTOM TAB BAR (mobile only) ══ -->
+    <nav id="bottom-nav" class="md:hidden flex-shrink-0 bg-white border-t border-gray-200 flex items-stretch z-20">
+      <button onclick="showView('scan')"     id="tab-scan"     class="tab-btn active flex-1 flex flex-col items-center justify-center py-2 gap-0.5 text-gray-500 transition-colors">
+        <i class="tab-icon ph-bold ph-qr-code text-[20px]"></i>
+        <span class="text-[9px] mono-font uppercase tracking-wider font-bold">Scan</span>
+      </button>
+      <button onclick="showView('overview')" id="tab-overview" class="tab-btn flex-1 flex flex-col items-center justify-center py-2 gap-0.5 text-gray-500 transition-colors">
+        <i class="tab-icon ph-bold ph-grid-four text-[20px]"></i>
+        <span class="text-[9px] mono-font uppercase tracking-wider font-bold">Status</span>
+      </button>
+      <button onclick="showView('log')"      id="tab-log"      class="tab-btn flex-1 flex flex-col items-center justify-center py-2 gap-0.5 text-gray-500 transition-colors">
+        <i class="tab-icon ph-bold ph-clipboard-text text-[20px]"></i>
+        <span class="text-[9px] mono-font uppercase tracking-wider font-bold">Log</span>
+      </button>
+      <button onclick="showView('qr')"       id="tab-qr"       class="tab-btn flex-1 flex flex-col items-center justify-center py-2 gap-0.5 text-gray-500 transition-colors">
+        <i class="tab-icon ph-bold ph-printer text-[20px]"></i>
+        <span class="text-[9px] mono-font uppercase tracking-wider font-bold">QR</span>
+      </button>
+      <button onclick="showView('admin')"    id="tab-admin"    class="tab-btn flex-1 flex flex-col items-center justify-center py-2 gap-0.5 text-gray-500 transition-colors">
+        <i class="tab-icon ph-bold ph-gear text-[20px]"></i>
+        <span class="text-[9px] mono-font uppercase tracking-wider font-bold">Admin</span>
+      </button>
+    </nav>
+
+  </main>
+</div>
+
+<script>
+// ════════════════════════════════════════════
+// CONFIG
+// ════════════════════════════════════════════
+const SUPABASE_URL = 'https://mdutrtmdjodabggirntb.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kdXRydG1kam9kYWJnZ2lybnRiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ5MDk3MzQsImV4cCI6MjA5MDQ4NTczNH0.GlrbsjnkBSwhnguBQUCb418NxvRO02PhXhBJZ69xTi4';
+const BASE_URL = window.location.origin + window.location.pathname;
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+// ════════════════════════════════════════════
+// STATE
+// ════════════════════════════════════════════
+let chairs = [], statuses = {}, logData = [], selectedChair = null;
+
+// ════════════════════════════════════════════
+// INIT
+// ════════════════════════════════════════════
+async function init() {
+  await loadData();
+  renderScanView();
+  renderOverview();
+  const p = new URLSearchParams(window.location.search);
+  if (p.get('chair')) { selectChair(p.get('chair')); showView('scan'); }
+}
+
+async function loadData() {
+  await loadChairs();
+  await loadStatuses();
+  updateTopbarStats();
+}
+
+async function loadChairs() {
+  const { data } = await sb.from('wheelchairs').select('*').eq('active', true).order('id');
+  chairs = data || [];
+}
+
+async function loadStatuses() {
+  if (!chairs.length) return;
+  const ids = chairs.map(c => c.id);
+  const { data } = await sb.from('wheelchair_events')
+    .select('wheelchair_id,event_type,driver_ref,vehicle_number,timestamp')
+    .in('wheelchair_id', ids).order('timestamp', { ascending: false });
+  const seen = new Set(); statuses = {};
+  for (const r of (data || [])) {
+    if (!seen.has(r.wheelchair_id)) {
+      seen.add(r.wheelchair_id);
+      statuses[r.wheelchair_id] = { status: r.event_type === 'checkout' ? 'out' : 'in', ...r };
+    }
+  }
+  for (const c of chairs) if (!statuses[c.id]) statuses[c.id] = { status: 'in' };
+}
+
+async function loadLog() {
+  const { data } = await sb.from('wheelchair_events').select('*').order('timestamp', { ascending: false }).limit(500);
+  logData = data || [];
+}
+
+function updateTopbarStats() {
+  const out = chairs.filter(c => (statuses[c.id]||{}).status === 'out').length;
+  document.getElementById('tb-total').textContent = chairs.length;
+  document.getElementById('tb-out').textContent   = out;
+  document.getElementById('tb-in').textContent    = chairs.length - out;
+}
+
+// ════════════════════════════════════════════
+// NAV
+// ════════════════════════════════════════════
+const VIEWS  = ['scan','overview','log','qr','admin'];
+const CRUMBS = { scan:'Scan / Action', overview:'Shed Status', log:'Event Log', qr:'Print QR', admin:'Admin' };
+
+function showView(v) {
+  VIEWS.forEach(id => {
+    document.getElementById('view-'+id).classList.toggle('active', id===v);
+    // sidebar
+    const nb = document.getElementById('nav-'+id);
+    if (nb) nb.classList.toggle('active', id===v);
+    // bottom tabs
+    const tb = document.getElementById('tab-'+id);
+    if (tb) tb.classList.toggle('active', id===v);
+  });
+  document.getElementById('crumb-current').textContent = CRUMBS[v];
+  // scroll to top
+  document.querySelector('.flex-1.overflow-y-auto')?.scrollTo(0,0);
+  if (v==='overview') loadData().then(renderOverview);
+  if (v==='log')      loadLog().then(() => { renderLog(); populateLogChairFilter(); });
+  if (v==='qr')       renderQR();
+  if (v==='admin')    loadData().then(renderAdminCards);
+  if (v==='scan')     loadData().then(renderScanView);
+}
+
+// ════════════════════════════════════════════
+// SCAN VIEW
+// ════════════════════════════════════════════
+function renderScanView() {
+  const el = document.getElementById('chair-selector');
+  if (!chairs.length) {
+    el.innerHTML = '<div class="col-span-full text-center py-8 text-gray-400 text-[13px]"><i class="ph-bold ph-wheelchair text-2xl block mb-2"></i>No chairs registered. Use Admin to add.</div>';
+    return;
+  }
+  el.innerHTML = chairs.map(c => {
+    const st = (statuses[c.id]||{}).status || 'in';
+    const isOut = st === 'out';
+    const isSel = selectedChair === c.id;
+    return `<button class="chair-pill text-left border rounded-xl p-3.5 w-full ${isSel ? 'selected' : 'border-gray-200 bg-white'} ${isOut && !isSel ? '!border-orange-200 bg-orange-50/50' : ''}" onclick="selectChair('${c.id}')">
+      <div class="mono-font text-[14px] font-bold text-black mb-0.5">${c.id}</div>
+      <div class="text-[11px] text-gray-400 mb-2.5 truncate">${c.label||'—'}</div>
+      <span class="mono-font text-[9px] font-bold uppercase tracking-widest px-2 py-1 rounded-full ${isOut ? 'bg-orange-100 text-[#D97757]' : 'bg-emerald-50 text-emerald-600'}">${isOut ? 'Out' : 'In Shed'}</span>
+    </button>`;
+  }).join('');
+  updateActionButtons();
+}
+
+function selectChair(id) {
+  selectedChair = id;
+  const c  = chairs.find(x => x.id === id);
+  const st = (statuses[id]||{}).status || 'in';
+  // re-render pills cleanly
+  renderScanView();
+  // show bar
+  const bar = document.getElementById('selected-bar');
+  bar.classList.remove('hidden');
+  document.getElementById('scb-id').textContent    = id;
+  document.getElementById('scb-label').textContent = c?.label || '';
+  const dot  = document.getElementById('scb-dot');
+  const txt  = document.getElementById('scb-status-text');
+  dot.className = 'w-2 h-2 rounded-full ' + (st==='out' ? 'bg-[#D97757]' : 'bg-emerald-500');
+  txt.textContent = st==='out' ? 'Currently Out' : 'In Shed';
+  updateActionButtons();
+  clearStatus('action');
+  // scroll to form on mobile
+  if (window.innerWidth < 768) {
+    setTimeout(() => bar.scrollIntoView({ behavior:'smooth', block:'start' }), 50);
+  }
+}
+
+function updateActionButtons() {
+  const co = document.getElementById('btn-checkout');
+  const ci = document.getElementById('btn-checkin');
+  if (!selectedChair) { co.disabled = true; ci.disabled = true; return; }
+  const st = (statuses[selectedChair]||{}).status || 'in';
+  co.disabled = st === 'out';
+  ci.disabled = st === 'in';
+}
+
+async function submitEvent(type) {
+  clearStatus('action');
+  const driverRef  = document.getElementById('driver-ref').value.trim();
+  const vehicleNum = document.getElementById('vehicle-num').value.trim();
+  const notes      = document.getElementById('event-notes').value.trim();
+  if (!selectedChair) return showStatus('action','Select a wheelchair first.','error');
+  if (!driverRef)     return showStatus('action','Driver Ref # is required.','error');
+  if (!vehicleNum)    return showStatus('action','Vehicle Number is required.','error');
+
+  const { error } = await sb.from('wheelchair_events').insert({
+    wheelchair_id: selectedChair, event_type: type,
+    driver_ref: driverRef, vehicle_number: vehicleNum,
+    notes: notes||null, timestamp: new Date().toISOString()
+  });
+  if (error) return showStatus('action','Error: '+error.message,'error');
+
+  statuses[selectedChair] = { status: type==='checkout'?'out':'in', driver_ref:driverRef, vehicle_number:vehicleNum, timestamp:new Date().toISOString() };
+  const verb = type==='checkout' ? 'Checked out' : 'Checked in';
+  showStatus('action', `✓ ${verb} ${selectedChair} — Driver ${driverRef} / Vehicle ${vehicleNum}`, 'success');
+  document.getElementById('driver-ref').value = '';
+  document.getElementById('vehicle-num').value = '';
+  document.getElementById('event-notes').value = '';
+  document.getElementById('selected-bar').classList.add('hidden');
+  selectedChair = null;
+  updateTopbarStats();
+  renderScanView();
+  // scroll back to top on mobile
+  if (window.innerWidth < 768) window.scrollTo(0,0);
+}
+
+// ════════════════════════════════════════════
+// OVERVIEW
+// ════════════════════════════════════════════
+function renderOverview() {
+  let outHTML='', inHTML='', outCt=0, inCt=0;
+  for (const c of chairs) {
+    const st = statuses[c.id] || { status:'in' };
+    const ts = st.timestamp ? fmtTime(st.timestamp) : '—';
+    if (st.status==='out') {
+      outCt++;
+      outHTML += `<div class="bg-white border border-orange-200 rounded-xl p-4 shadow-[0_1px_3px_rgba(0,0,0,0.02)] flex items-start gap-3">
+        <div class="flex-1 min-w-0">
+          <div class="flex items-center gap-2 mb-1">
+            <span class="mono-font text-[14px] font-bold text-black">${c.id}</span>
+            <span class="mono-font text-[9px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full bg-orange-100 text-[#D97757]">Out</span>
+          </div>
+          <div class="text-[11px] text-gray-400 mb-2 truncate">${c.label||'—'}</div>
+          <div class="flex flex-wrap gap-x-4 gap-y-1 mono-font text-[11px] text-gray-500">
+            <span><span class="text-gray-400">Driver</span> <strong class="text-black">${st.driver_ref||'—'}</strong></span>
+            <span><span class="text-gray-400">Vehicle</span> <strong class="text-black">${st.vehicle_number||'—'}</strong></span>
+          </div>
+          <div class="mono-font text-[10px] text-gray-400 mt-1.5">${ts}</div>
+        </div>
+      </div>`;
+    } else {
+      inCt++;
+      inHTML += `<div class="bg-white border border-gray-200 rounded-xl p-3.5 shadow-[0_1px_3px_rgba(0,0,0,0.02)]">
+        <div class="mono-font text-[13px] font-bold text-black mb-0.5">${c.id}</div>
+        <div class="text-[10px] text-gray-400 mb-1.5 truncate">${c.label||'—'}</div>
+        <span class="mono-font text-[9px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-600">In Shed</span>
+      </div>`;
+    }
+  }
+  document.getElementById('ov-total').textContent     = chairs.length;
+  document.getElementById('ov-out-count').textContent = outCt;
+  document.getElementById('ov-in-count').textContent  = inCt;
+  document.getElementById('ov-out').innerHTML = outHTML || '<p class="text-[13px] text-gray-400">No chairs currently out.</p>';
+  document.getElementById('ov-in').innerHTML  = inHTML  || '<p class="text-[13px] text-gray-400 col-span-2">All chairs are checked out.</p>';
+}
+
+// ════════════════════════════════════════════
+// LOG
+// ════════════════════════════════════════════
+function getFilteredLog() {
+  const search = document.getElementById('log-search').value.toLowerCase();
+  const typeF  = document.getElementById('log-type').value;
+  const chairF = document.getElementById('log-chair').value;
+  const dateF  = document.getElementById('log-date').value;
+  let rows = logData;
+  if (search) rows = rows.filter(r => ['driver_ref','wheelchair_id','vehicle_number','notes'].some(k => (r[k]||'').toLowerCase().includes(search)));
+  if (typeF)  rows = rows.filter(r => r.event_type===typeF);
+  if (chairF) rows = rows.filter(r => r.wheelchair_id===chairF);
+  if (dateF)  rows = rows.filter(r => r.timestamp?.startsWith(dateF));
+  return rows;
+}
+
+function renderLog() {
+  const rows = getFilteredLog();
+
+  // Mobile cards
+  const cards = document.getElementById('log-cards');
+  if (!rows.length) {
+    cards.innerHTML = '<p class="text-[13px] text-gray-400 py-4 text-center">No events found.</p>';
+  } else {
+    cards.innerHTML = rows.map(r => `
+      <div class="bg-white border border-gray-200 rounded-xl p-4 shadow-[0_1px_3px_rgba(0,0,0,0.02)]">
+        <div class="flex items-start justify-between mb-2">
+          <div class="mono-font text-[13px] font-bold text-black">${r.wheelchair_id}</div>
+          <span class="mono-font text-[9px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full ${r.event_type==='checkout' ? 'bg-orange-100 text-[#D97757]' : 'bg-emerald-50 text-emerald-600'}">${r.event_type==='checkout'?'OUT':'IN'}</span>
+        </div>
+        <div class="flex flex-wrap gap-x-4 gap-y-1 mono-font text-[11px] text-gray-500 mb-2">
+          <span><span class="text-gray-400">Driver</span> <strong class="text-black">${r.driver_ref||'—'}</strong></span>
+          <span><span class="text-gray-400">Vehicle</span> <strong class="text-black">${r.vehicle_number||'—'}</strong></span>
+        </div>
+        ${r.notes ? `<div class="text-[11px] text-gray-400 mb-1.5">${r.notes}</div>` : ''}
+        <div class="mono-font text-[10px] text-gray-400">${fmtTime(r.timestamp)}</div>
+      </div>`).join('');
+  }
+
+  // Desktop table
+  const tbody = document.getElementById('log-tbody');
+  if (!rows.length) {
+    tbody.innerHTML = '<tr><td colspan="6" class="px-4 py-8 text-center text-gray-400 text-[13px]">No events found.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = rows.map(r => `
+    <tr class="border-t border-gray-100 hover:bg-gray-50/50 transition-colors">
+      <td class="px-4 py-2.5 mono-font text-[11px] text-gray-500 whitespace-nowrap">${fmtTime(r.timestamp)}</td>
+      <td class="px-4 py-2.5 mono-font font-bold text-[13px]">${r.wheelchair_id}</td>
+      <td class="px-4 py-2.5"><span class="mono-font text-[9px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full ${r.event_type==='checkout' ? 'bg-orange-100 text-[#D97757]' : 'bg-emerald-50 text-emerald-600'}">${r.event_type==='checkout'?'OUT':'IN'}</span></td>
+      <td class="px-4 py-2.5 mono-font text-[12px]">${r.driver_ref||'—'}</td>
+      <td class="px-4 py-2.5 mono-font text-[12px]">${r.vehicle_number||'—'}</td>
+      <td class="px-4 py-2.5 text-[12px] text-gray-400">${r.notes||''}</td>
+    </tr>`).join('');
+}
+function filterLog() { renderLog(); }
+function populateLogChairFilter() {
+  const sel = document.getElementById('log-chair');
+  const cur = sel.value;
+  sel.innerHTML = '<option value="">All Chairs</option>' + chairs.map(c => `<option value="${c.id}" ${c.id===cur?'selected':''}>${c.id}</option>`).join('');
+}
+
+// ════════════════════════════════════════════
+// QR
+// ════════════════════════════════════════════
+function renderQR() {
+  const door = document.getElementById('qr-door');
+  door.innerHTML = '';
+  new QRCode(door, { text: BASE_URL, width: 120, height: 120, correctLevel: QRCode.CorrectLevel.M });
+  const grid = document.getElementById('qr-grid');
+  grid.innerHTML = '';
+  for (const c of chairs) {
+    const url = BASE_URL + (BASE_URL.includes('?')?'&':'?') + 'chair=' + encodeURIComponent(c.id);
+    const div = document.createElement('div');
+    div.className = 'bg-white border border-gray-200 rounded-xl p-4 shadow-[0_1px_3px_rgba(0,0,0,0.02)] text-center';
+    div.innerHTML = `<div class="flex justify-center mb-2" id="qr-c-${c.id}"></div>
+      <div class="mono-font text-[11px] font-bold text-black">${c.id}</div>
+      <div class="text-[10px] text-gray-400 mt-0.5 truncate">${c.label||''}</div>`;
+    grid.appendChild(div);
+    new QRCode(document.getElementById('qr-c-'+c.id), { text: url, width: 110, height: 110, correctLevel: QRCode.CorrectLevel.M });
+  }
+}
+
+// ════════════════════════════════════════════
+// ADMIN
+// ════════════════════════════════════════════
+async function addChair() {
+  const id    = document.getElementById('new-id').value.trim().toUpperCase();
+  const label = document.getElementById('new-label').value.trim();
+  const make  = document.getElementById('new-make').value.trim();
+  const model = document.getElementById('new-model').value.trim();
+  const notes = document.getElementById('new-notes').value.trim();
+  if (!id) return showStatus('admin','Chair ID is required.','error');
+  const { error } = await sb.from('wheelchairs').insert({ id, label, make, model, notes, active:true });
+  if (error) return showStatus('admin','Error: '+error.message,'error');
+  showStatus('admin',`Chair ${id} added.`,'success');
+  ['new-id','new-label','new-make','new-model','new-notes'].forEach(f => document.getElementById(f).value='');
+  await loadData();
+  renderAdminCards();
+}
+
+async function deactivateChair(id) {
+  if (!confirm(`Remove ${id} from active chairs?`)) return;
+  await sb.from('wheelchairs').update({ active:false }).eq('id', id);
+  await loadData();
+  renderAdminCards();
+}
+
+function renderAdminCards() {
+  const el = document.getElementById('admin-cards');
+  if (!chairs.length) { el.innerHTML = '<p class="text-[13px] text-gray-400 py-4 text-center">No chairs yet.</p>'; return; }
+  el.innerHTML = chairs.map(c => {
+    const st = (statuses[c.id]||{}).status || 'in';
+    return `<div class="bg-white border border-gray-200 rounded-xl p-4 shadow-[0_1px_3px_rgba(0,0,0,0.02)] flex items-start gap-3">
+      <div class="flex-1 min-w-0">
+        <div class="flex items-center gap-2 flex-wrap mb-1">
+          <span class="mono-font text-[13px] font-bold text-black">${c.id}</span>
+          <span class="mono-font text-[9px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full ${st==='out' ? 'bg-orange-100 text-[#D97757]' : 'bg-emerald-50 text-emerald-600'}">${st==='out'?'OUT':'IN'}</span>
+        </div>
+        <div class="text-[12px] text-gray-600">${c.label||'—'}</div>
+        ${c.make||c.model ? `<div class="text-[11px] text-gray-400 mt-0.5">${[c.make,c.model].filter(Boolean).join(' / ')}</div>` : ''}
+        ${c.notes ? `<div class="text-[11px] text-gray-400 mt-0.5">${c.notes}</div>` : ''}
+      </div>
+      <button onclick="deactivateChair('${c.id}')" class="flex-shrink-0 text-[11px] text-red-400 hover:text-red-600 mono-font font-bold uppercase tracking-widest transition-colors py-1">Remove</button>
+    </div>`;
+  }).join('');
+}
+
+// ════════════════════════════════════════════
+// HELPERS
+// ════════════════════════════════════════════
+function showStatus(ctx, msg, type) {
+  const id = ctx==='action' ? 'action-status' : 'admin-status';
+  const el = document.getElementById(id);
+  el.classList.remove('hidden');
+  el.textContent = msg;
+  el.className = (type==='success'
+    ? 'bg-emerald-50 border-emerald-200 text-emerald-700'
+    : 'bg-red-50 border-red-200 text-red-600')
+    + (ctx==='action' ? ' mb-4' : '') + ' px-4 py-3 rounded-xl text-[13px] font-medium border';
+}
+function clearStatus(ctx) {
+  const id = ctx==='action' ? 'action-status' : 'admin-status';
+  document.getElementById(id).classList.add('hidden');
+}
+function fmtTime(iso) {
+  if (!iso) return '—';
+  return new Date(iso).toLocaleString('en-US', { timeZone:'America/Los_Angeles', month:'short', day:'numeric', hour:'numeric', minute:'2-digit', hour12:true });
+}
+
+init();
+</script>
+</body>
+</html>

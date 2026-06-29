@@ -1,0 +1,2739 @@
+<!DOCTYPE html> 
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DLX DMT — Dispatch Hub</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <link rel="stylesheet" href="theme.css">
+</head>
+<body class="antialiased text-[#1a1a1a] bg-white">
+
+<div class="flex h-screen overflow-hidden relative">
+    
+    <!-- ═══════════════ AUTH LAYER ═══════════════ -->
+    <div id="auth-layer" class="fixed inset-0 z-[100] bg-white flex transition-opacity duration-300">
+        
+        <aside class="hidden lg:flex flex-col justify-between bg-[#111111] text-white p-10 w-[55%] relative overflow-hidden">
+            <div class="flex items-center gap-3 font-bold tracking-tight text-sm">
+                <div class="w-7 h-7 bg-white text-black rounded flex items-center justify-center text-xs">D</div>
+                <span>DLX DMT</span>
+                <span class="ml-auto mono-font text-[10px] tracking-[0.14em] text-gray-400 uppercase">
+                    Dispatch · v4.2
+                </span>
+            </div>
+
+            <div class="display-font text-[4.5vw] font-semibold leading-[0.92] tracking-tighter">
+                Dispatch,<br/>
+                drivers, <em class="not-italic text-[#D97757]">dispatched.</em>
+            </div>
+
+            <div class="grid grid-cols-2 gap-y-2 gap-x-6 mono-font text-[10px] tracking-[0.12em] uppercase text-gray-400">
+                <span>Region</span><b class="text-white font-medium">Eugene · Springfield · Coburg</b>
+                <span>Status</span><b class="text-white font-medium flex items-center gap-2"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>All systems nominal</b>
+            </div>
+        </aside>
+
+        <div class="flex-1 flex items-center justify-center p-8 bg-white">
+            <div class="w-full max-w-[380px]">
+                <div class="mb-8">
+                    <div class="mono-font text-[10px] tracking-[0.14em] text-gray-500 uppercase mb-2">Sign In · 001</div>
+                    <h2 id="auth-title" class="display-font text-3xl font-semibold text-black tracking-tight">Welcome back.</h2>
+                    <p id="auth-subtitle" class="text-[13px] text-gray-500 mt-1">Sign in to access your tools and schedule.</p>
+                </div>
+
+                <form id="auth-form" class="space-y-4">
+                    <div id="role-selection" class="mb-4">
+                        <div class="flex border border-gray-200 rounded-md overflow-hidden">
+                            <label class="flex flex-col items-center justify-center text-xs cursor-pointer flex-1 py-3 text-gray-500 hover:bg-gray-50 transition-colors border-r border-gray-200 has-[:checked]:bg-black has-[:checked]:text-white">
+                                <input type="radio" name="user-type" value="staff" checked class="hidden" onclick="updateFormUI()"> 
+                                <i class="ph-bold ph-headset text-lg mb-1"></i>
+                                <span class="mono-font text-[9px] tracking-wider uppercase font-bold">Staff / Dispatch</span>
+                            </label>
+                            <label class="flex flex-col items-center justify-center text-xs cursor-pointer flex-1 py-3 text-gray-500 hover:bg-gray-50 transition-colors has-[:checked]:bg-black has-[:checked]:text-white">
+                                <input type="radio" name="user-type" value="driver" class="hidden" onclick="updateFormUI()"> 
+                                <i class="ph-bold ph-steering-wheel text-lg mb-1"></i>
+                                <span class="mono-font text-[9px] tracking-wider uppercase font-bold">Driver</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div id="name-field" class="hidden">
+                        <label class="block mono-font text-[10px] tracking-widest text-gray-500 uppercase mb-1.5">Full Name</label>
+                        <input type="text" id="auth-name" class="w-full rounded-md border-gray-300 border p-2.5 text-[13px] focus:ring-0 focus:border-black transition-all" placeholder="Jane Doe">
+                    </div>
+                    <div>
+                        <label id="email-label" class="block mono-font text-[10px] tracking-widest text-gray-500 uppercase mb-1.5">Email Address</label>
+                        <input type="text" id="auth-email" class="w-full rounded-md border-gray-300 border p-2.5 text-[13px] focus:ring-0 focus:border-black transition-all" placeholder="name@oregontaxi.com" required>
+                    </div>
+                    <div>
+                        <label id="password-label" class="block mono-font text-[10px] tracking-widest text-gray-500 uppercase mb-1.5">Password</label>
+                        <input type="password" id="auth-password" class="w-full rounded-md border-gray-300 border p-2.5 text-[13px] focus:ring-0 focus:border-black transition-all" placeholder="••••••••" required>
+                    </div>
+                    
+                    <button type="submit" id="auth-submit-btn" class="w-full bg-black hover:bg-[#222] text-white font-semibold py-2.5 rounded-md transition-colors flex justify-center items-center gap-2 mt-2">
+                        <span id="auth-submit-text">Sign In</span>
+                        <i class="ph-bold ph-arrow-right"></i>
+                    </button>
+                </form>
+
+                <div class="mt-6 text-center">
+                    <button onclick="toggleAuthMode()" id="auth-toggle-btn" class="hidden mono-font text-[10px] tracking-widest uppercase text-gray-500 hover:text-black transition-colors underline">Need an account? Register here.</button>
+                    <div id="auth-message" class="hidden p-3 text-xs rounded border text-center font-medium mt-4"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══════════════ SIDEBAR ═══════════════ -->
+    <aside class="flex flex-col flex-shrink-0 w-20 md:w-60 bg-white border-r border-gray-200 z-30 relative shadow-[1px_0_0_rgba(0,0,0,0.05)]">
+        <a href="#" onclick="showSection('dashboard')" class="flex items-center justify-center md:justify-start md:px-5 h-[72px] border-b border-gray-200 flex-shrink-0 bg-white w-full hover:bg-gray-50 transition-colors">
+            <div class="w-7 h-7 bg-black text-white rounded-[4px] flex items-center justify-center font-bold text-xs">D</div>
+            <span class="ml-3 text-[15px] font-semibold hidden md:block tracking-tight display-font">DLX DMT</span>
+        </a>
+
+        <div class="flex-1 overflow-y-auto custom-scroll p-3 space-y-1">
+            <div class="mono-font text-[9px] font-bold text-gray-400 uppercase tracking-[0.14em] mb-2 px-2 hidden md:block pt-3">Workspace</div>
+            
+            <button onclick="showSection('dashboard')" id="nav-dashboard" class="nav-btn w-full flex items-center justify-center md:justify-start p-2 rounded-md hover:bg-gray-100 text-gray-700 hover:text-black transition-colors group">
+                <i class="ph-bold ph-app-window text-[17px] opacity-75 group-hover:opacity-100"></i>
+                <span class="ml-2.5 text-[13px] font-medium hidden md:block">Dashboard</span>
+            </button>
+            <button onclick="showSection('trips')" id="nav-trips" class="nav-btn w-full flex items-center justify-center md:justify-start p-2 rounded-md hover:bg-gray-100 text-gray-700 hover:text-black transition-colors group">
+                <i class="ph-bold ph-path text-[17px] opacity-75 group-hover:opacity-100"></i>
+                <span class="ml-2.5 text-[13px] font-medium hidden md:block">Trips</span>
+            </button>
+            <button onclick="showSection('documents')" id="nav-documents" class="nav-btn w-full flex items-center justify-center md:justify-start p-2 rounded-md hover:bg-gray-100 text-gray-700 hover:text-black transition-colors group">
+                <i class="ph-bold ph-folder-open text-[17px] opacity-75 group-hover:opacity-100"></i>
+                <span class="ml-2.5 text-[13px] font-medium hidden md:block">Documents</span>
+            </button>
+            <button onclick="showSection('schedule')" id="nav-schedule" class="nav-btn w-full flex items-center justify-center md:justify-start p-2 rounded-md hover:bg-gray-100 text-gray-700 hover:text-black transition-colors group">
+                <i class="ph-bold ph-calendar text-[17px] opacity-75 group-hover:opacity-100"></i>
+                <span class="ml-2.5 text-[13px] font-medium hidden md:block">Schedule</span>
+            </button>
+            <a href="/drivers.html" id="nav-drivers" data-tool="drivers" class="w-full flex items-center justify-center md:justify-start p-2 rounded-md hover:bg-gray-100 text-gray-700 hover:text-black transition-colors group">
+                <i class="ph-bold ph-steering-wheel text-[17px] opacity-75 group-hover:opacity-100"></i>
+                <span class="ml-2.5 text-[13px] font-medium hidden md:block">Drivers</span>
+            </a>
+
+            <div id="quick-launch-section" class="hidden mt-4 pt-2">
+                <div class="mono-font text-[9px] font-bold text-gray-400 uppercase tracking-[0.14em] mb-2 px-2 hidden md:block">Tools</div>
+                
+                <a href="/sms.html" data-tool="sms" class="quick-launch-item w-full flex items-center justify-center md:justify-start p-2 rounded-md hover:bg-gray-100 text-gray-700 hover:text-black transition-colors group">
+                    <i class="ph-bold ph-chat-circle-text text-[17px] opacity-75 group-hover:opacity-100"></i>
+                    <span class="ml-2.5 text-[13px] font-medium hidden md:block">SMS Tool</span>
+                </a>
+                <a href="/balances.html" data-tool="balances" class="quick-launch-item w-full flex items-center justify-center md:justify-start p-2 rounded-md hover:bg-gray-100 text-gray-700 hover:text-black transition-colors group">
+                    <i class="ph-bold ph-wallet text-[17px] opacity-75 group-hover:opacity-100"></i>
+                    <span class="ml-2.5 text-[13px] font-medium hidden md:block">Account Balances</span>
+                </a>
+                <a href="/zone-map.html" data-tool="zones" class="quick-launch-item w-full flex items-center justify-center md:justify-start p-2 rounded-md hover:bg-gray-100 text-gray-700 hover:text-black transition-colors group">
+                    <i class="ph-bold ph-map-trifold text-[17px] opacity-75 group-hover:opacity-100"></i>
+                    <span class="ml-2.5 text-[13px] font-medium hidden md:block">Zone Map</span>
+                </a>
+                <a href="/financialdashboard" data-tool="finance" class="quick-launch-item w-full flex items-center justify-center md:justify-start p-2 rounded-md hover:bg-gray-100 text-gray-700 hover:text-black transition-colors group">
+                    <i class="ph-bold ph-chart-line-up text-[17px] opacity-75 group-hover:opacity-100"></i>
+                    <span class="ml-2.5 text-[13px] font-medium hidden md:block">Financial Dash</span>
+                </a>
+                <a href="/repair-tracker.html" data-tool="repair" class="quick-launch-item w-full flex items-center justify-center md:justify-start p-2 rounded-md hover:bg-gray-100 text-gray-700 hover:text-black transition-colors group">
+                    <i class="ph-bold ph-wrench text-[17px] opacity-75 group-hover:opacity-100"></i>
+                    <span class="ml-2.5 text-[13px] font-medium hidden md:block">Repair Tracker</span>
+                </a>
+                              <a href="/trip-reconciler.html" data-tool="brokers" class="quick-launch-item w-full flex items-center justify-center md:justify-start p-2 rounded-md hover:bg-gray-100 text-gray-700 hover:text-black transition-colors group">
+                    <i class="ph-bold ph-handshake text-[17px] opacity-75 group-hover:opacity-100"></i>
+                    <span class="ml-2.5 text-[13px] font-medium hidden md:block">Trip Reconciler</span>
+                </a>
+                                            <a href="/lot-map.html" data-tool="brokers" class="quick-launch-item w-full flex items-center justify-center md:justify-start p-2 rounded-md hover:bg-gray-100 text-gray-700 hover:text-black transition-colors group">
+                    <i class="ph-bold ph-globe text-[17px] opacity-75 group-hover:opacity-100"></i>
+                    <span class="ml-2.5 text-[13px] font-medium hidden md:block">Lytx Data</span>
+                </a>
+            </div>
+
+            <div id="settings-nav-section" class="mt-4 pt-2 hidden">
+                <div class="mono-font text-[9px] font-bold text-gray-400 uppercase tracking-[0.14em] mb-2 px-2 hidden md:block">More</div>
+                <button onclick="showSection('settings')" id="nav-settings" class="nav-btn w-full flex items-center justify-center md:justify-start p-2 rounded-md hover:bg-gray-100 text-gray-700 hover:text-black transition-colors group">
+                    <i class="ph-bold ph-gear text-[17px] opacity-75 group-hover:opacity-100"></i>
+                    <span class="ml-2.5 text-[13px] font-medium hidden md:block">Settings</span>
+                </button>
+            </div>
+        </div>
+
+        <div class="p-3.5 border-t border-gray-200 flex items-center justify-center md:justify-between bg-white">
+            <div class="flex items-center overflow-hidden">
+                <div class="h-8 w-8 flex-shrink-0 rounded-md bg-black flex items-center justify-center text-white font-semibold text-[11px] display-font" id="user-avatar">?</div>
+                <div class="hidden md:flex flex-col ml-2.5 min-w-0">
+                    <span id="logged-user-name" class="text-[12px] font-semibold text-black truncate w-[100px] leading-tight">Guest</span>
+                    <span id="user-role" class="mono-font text-[9px] uppercase tracking-[0.14em] text-gray-400 mt-0.5">Waiting</span>
+                </div>
+            </div>
+            <button onclick="logout()" class="text-gray-400 hover:text-black ml-2 flex-shrink-0 transition-colors" title="Logout"><i class="ph-bold ph-sign-out text-lg"></i></button>
+        </div>
+    </aside>
+
+    <!-- ═══════════════ MAIN CONTENT ═══════════════ -->
+    <main class="flex-1 flex flex-col h-full overflow-hidden bg-[#faf9f8] relative z-10">
+        
+        <div class="flex items-center gap-4 px-8 py-3.5 border-b border-gray-200 bg-[#faf9f8] sticky top-0 z-10">
+            <div class="mono-font text-[10px] tracking-[0.14em] uppercase text-gray-400 flex items-center gap-2">
+                <span>Hub</span>
+                <span class="text-gray-300">/</span>
+                <span id="crumb-current" class="text-black font-semibold">Dashboard</span>
+            </div>
+            <div class="flex-1"></div>
+            <div class="relative w-72 hidden sm:block">
+                <i class="ph ph-magnifying-glass absolute left-3 top-2 text-gray-400 text-sm"></i>
+                <input type="text" id="app-search" placeholder="Search tools..." class="w-full bg-white border border-gray-200 text-black text-[13px] rounded-md pl-8 pr-12 py-1.5 focus:border-black focus:ring-0 shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
+                <kbd class="absolute right-2 top-2 font-mono text-[9px] text-gray-400 border border-gray-200 rounded px-1.5 py-0.5 bg-gray-50">⌘K</kbd>
+            </div>
+        </div>
+
+        <div class="flex-1 overflow-y-auto p-6 sm:p-10 custom-scroll relative">
+
+            <!-- ═══════ DASHBOARD ═══════ -->
+            <section id="dashboard-section" class="block">
+                <header class="flex flex-col sm:flex-row sm:items-end justify-between mb-8 pb-5 border-b border-gray-200">
+                    <div class="flex flex-col gap-1.5">
+                        <div class="mono-font text-[10px] tracking-[0.14em] uppercase text-gray-500" id="dash-sup">Workspace · Operations cockpit</div>
+                        <h1 id="app-header-title" class="display-font text-[36px] font-semibold text-black tracking-tight leading-none m-0">Applications.</h1>
+                        <div class="flex items-center gap-3 mono-font text-[10px] tracking-[0.12em] uppercase text-gray-400 mt-2">
+                            <span class="flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>All systems nominal</span>
+                            <span class="text-gray-300">·</span>
+                            <span id="app-count-meta">0 tools</span>
+                        </div>
+                    </div>
+                </header>
+
+                <div id="apps-container" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-0 border-t border-l border-gray-200 rounded-lg overflow-hidden bg-white shadow-[0_1px_3px_rgba(0,0,0,0.02)]"></div>
+                
+                <div id="no-apps-message" class="hidden flex flex-col items-center justify-center py-16 text-center bg-white border border-gray-200 rounded-lg mt-4">
+                    <div class="bg-gray-50 p-4 rounded-lg border border-gray-200 mb-4"><i class="ph-bold ph-lock-key text-2xl text-gray-400"></i></div>
+                    <h2 class="text-base font-semibold text-black">No Applications Available</h2>
+                    <p class="text-gray-500 text-[13px] mt-1">Your current role does not have access to any tools.</p>
+                </div>
+            </section>
+
+            <!-- ═══════ TRIPS (LIVE SUPABASE DATA) ═══════ -->
+            <section id="trips-section" class="hidden">
+                <header class="flex flex-col sm:flex-row sm:items-end justify-between mb-8 pb-5 border-b border-gray-200">
+                    <div class="flex flex-col gap-1.5">
+                        <div class="mono-font text-[10px] tracking-[0.14em] uppercase text-gray-500">Operations · Trip data</div>
+                        <h1 class="display-font text-[36px] font-semibold text-black tracking-tight leading-none m-0">Trips.</h1>
+                        <div class="flex items-center gap-3 mono-font text-[10px] tracking-[0.12em] uppercase text-gray-400 mt-2">
+                            <span id="trips-subtitle">Today's assigned trips</span>
+                            <span class="text-gray-300">·</span>
+                            <span id="trips-count-meta">0 trips</span>
+                        </div>
+                    </div>
+                    <div class="mt-4 sm:mt-0 flex items-center gap-2 flex-wrap">
+                        <select id="trips-site-filter" onchange="filterTrips()" class="bg-white border border-gray-200 rounded-md px-3 py-1.5 text-[11px] mono-font uppercase tracking-widest focus:border-black focus:ring-0">
+                            <option value="">All Sites</option>
+                        </select>
+                        <div class="flex items-center bg-white border border-gray-200 rounded-md overflow-hidden">
+                            <button onclick="shiftTripDay(-1)" class="px-2.5 py-1.5 hover:bg-gray-50 transition-colors border-r border-gray-200 text-gray-500"><i class="ph-bold ph-caret-left"></i></button>
+                            <button onclick="shiftTripDay(0)" class="px-3 py-1.5 text-[10px] mono-font uppercase tracking-widest font-bold hover:bg-gray-50 transition-colors border-r border-gray-200 text-gray-600">Today</button>
+                            <button onclick="shiftTripDay(1)" class="px-2.5 py-1.5 hover:bg-gray-50 transition-colors text-gray-500"><i class="ph-bold ph-caret-right"></i></button>
+                        </div>
+                        <input type="date" id="trips-date-picker" onchange="jumpToTripDate()" class="bg-white border border-gray-200 rounded-md px-3 py-1 text-[12px] focus:border-black focus:ring-0">
+                    </div>
+                </header>
+
+                <div id="trips-loading" class="hidden bg-white border border-gray-200 rounded-lg p-16 text-center">
+                    <div class="inline-block animate-spin w-6 h-6 border-2 border-gray-300 border-t-black rounded-full mb-3"></div>
+                    <p class="text-sm text-gray-500">Loading trips…</p>
+                </div>
+
+                <div id="trips-table-container" class="bg-white border border-gray-200 rounded-lg overflow-hidden shadow-[0_1px_3px_rgba(0,0,0,0.02)]">
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left">
+                            <thead>
+                                <tr class="bg-gray-50/50 border-b border-gray-200 mono-font text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                                    <th class="px-4 py-2.5">Time</th>
+                                    <th class="px-4 py-2.5">Passenger</th>
+                                    <th class="px-4 py-2.5">Pickup</th>
+                                    <th class="px-4 py-2.5">Dropoff</th>
+                                    <th class="px-4 py-2.5">Vehicle</th>
+                                    <th class="px-4 py-2.5">Driver</th>
+                                    <th class="px-4 py-2.5">Site</th>
+                                    <th class="px-4 py-2.5">Status</th>
+                                    <th class="px-4 py-2.5">Received</th>
+                                </tr>
+                            </thead>
+                            <tbody id="trips-tbody" class="text-[13px]"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div id="no-trips-message" class="hidden bg-white border border-gray-200 rounded-lg p-16 text-center mt-4">
+                    <div class="bg-gray-50 p-4 rounded-lg border border-gray-200 inline-block mb-3"><i class="ph-bold ph-path text-2xl text-gray-400"></i></div>
+                    <p class="text-sm font-medium text-black">No trips found</p>
+                    <p class="text-xs text-gray-500 mt-1">No designated trips for this date.</p>
+                </div>
+            </section>
+
+            <!-- ═══════ DOCUMENTS ═══════ -->
+            <section id="documents-section" class="hidden">
+                <header class="flex flex-col sm:flex-row sm:items-end justify-between mb-8 pb-5 border-b border-gray-200">
+                    <div class="flex flex-col gap-1.5">
+                        <div class="mono-font text-[10px] tracking-[0.14em] uppercase text-gray-500">Workspace · Document library</div>
+                        <h1 class="display-font text-[36px] font-semibold text-black tracking-tight leading-none m-0">Documents.</h1>
+                        <div class="flex items-center gap-3 mono-font text-[10px] tracking-[0.12em] uppercase text-gray-400 mt-2">
+                            <span id="doc-count-meta">0 files</span>
+                        </div>
+                    </div>
+                    <div class="mt-4 sm:mt-0 flex items-center gap-2">
+                        <div class="relative w-52 hidden sm:block">
+                            <i class="ph ph-magnifying-glass absolute left-3 top-2 text-gray-400 text-sm"></i>
+                            <input type="text" id="doc-search" oninput="renderDocuments()" placeholder="Search files…" class="w-full bg-white border border-gray-200 text-black text-[13px] rounded-md pl-8 pr-3 py-1.5 focus:border-black focus:ring-0">
+                        </div>
+                        <button id="doc-upload-btn" onclick="openUploadModal()" class="hidden bg-black hover:bg-[#222] text-white text-xs font-semibold px-3 py-1.5 rounded-md items-center gap-1.5 transition-colors">
+                            <i class="ph-bold ph-upload-simple"></i>
+                            <span>Upload</span>
+                        </button>
+                    </div>
+                </header>
+
+                <div class="flex flex-col md:flex-row gap-6 items-start">
+                    <div id="doc-sidebar" class="w-full md:w-56 flex-shrink-0 bg-white border border-gray-200 rounded-lg overflow-hidden shadow-[0_1px_3px_rgba(0,0,0,0.02)] sticky top-6"></div>
+                    <div class="flex-1 bg-white border border-gray-200 rounded-lg overflow-hidden w-full shadow-[0_1px_3px_rgba(0,0,0,0.02)]">
+                        <div id="doc-loading" class="hidden p-12 text-center">
+                            <div class="inline-block animate-spin w-6 h-6 border-2 border-gray-300 border-t-black rounded-full mb-3"></div>
+                            <p class="text-sm text-gray-500">Loading documents…</p>
+                        </div>
+                        <div id="doc-list"></div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ═══════ SETTINGS ═══════ -->
+            <section id="settings-section" class="hidden">
+                <header class="flex flex-col sm:flex-row sm:items-end justify-between mb-8 pb-5 border-b border-gray-200">
+                    <div class="flex flex-col gap-1.5">
+                        <div class="mono-font text-[10px] tracking-[0.14em] uppercase text-gray-500">Admin · System settings</div>
+                        <h1 class="display-font text-[36px] font-semibold text-black tracking-tight leading-none m-0">Settings.</h1>
+                        <div class="flex items-center gap-3 mono-font text-[10px] tracking-[0.12em] uppercase text-gray-400 mt-2">
+                            <span>User management · Role management · Access control</span>
+                        </div>
+                    </div>
+                </header>
+
+                <!-- Settings Tabs -->
+                <div class="flex items-center gap-0 border-b border-gray-200 mb-6">
+                    <button onclick="switchSettingsTab('users')" id="stab-users" class="settings-tab px-5 py-2.5 text-[12px] font-semibold mono-font uppercase tracking-widest border-b-2 border-black text-black -mb-px transition-colors">Users</button>
+                    <button onclick="switchSettingsTab('roles')" id="stab-roles" class="settings-tab px-5 py-2.5 text-[12px] font-semibold mono-font uppercase tracking-widest border-b-2 border-transparent text-gray-400 -mb-px hover:text-gray-700 transition-colors">Roles</button>
+                    <button onclick="switchSettingsTab('access')" id="stab-access" class="settings-tab px-5 py-2.5 text-[12px] font-semibold mono-font uppercase tracking-widest border-b-2 border-transparent text-gray-400 -mb-px hover:text-gray-700 transition-colors">Access Control</button>
+                </div>
+
+                <!-- Users Tab -->
+                <div id="settings-tab-users">
+                    <div class="flex items-center justify-between mb-4">
+                        <p class="text-[13px] text-gray-500">Manage staff accounts, assign roles, and control system access.</p>
+                        <button onclick="openNewUserModal()" class="bg-black hover:bg-[#222] text-white text-xs font-semibold px-3 py-1.5 rounded-md flex items-center gap-1.5 transition-colors">
+                            <i class="ph-bold ph-plus"></i> Add User
+                        </button>
+                    </div>
+                    <div id="settings-users-loading" class="bg-white border border-gray-200 rounded-lg p-12 text-center">
+                        <div class="inline-block animate-spin w-6 h-6 border-2 border-gray-300 border-t-black rounded-full mb-3"></div>
+                        <p class="text-sm text-gray-500">Loading users…</p>
+                    </div>
+                    <div id="settings-users-table" class="hidden bg-white border border-gray-200 rounded-lg overflow-hidden shadow-[0_1px_3px_rgba(0,0,0,0.02)]">
+                        <div class="grid grid-cols-[1fr_160px_120px_100px_80px] gap-3 items-center bg-gray-50/50 px-5 py-2.5 border-b border-gray-200 mono-font text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                            <div>User</div><div>Email</div><div>Role</div><div>Status</div><div>Actions</div>
+                        </div>
+                        <div id="settings-users-body"></div>
+                    </div>
+                </div>
+
+                <!-- Roles Tab -->
+                <div id="settings-tab-roles" class="hidden">
+                    <p class="text-[13px] text-gray-500 mb-6">System roles and their access permissions across all tools.</p>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4" id="roles-grid"></div>
+                </div>
+
+                <!-- Access Control Tab -->
+                <div id="settings-tab-access" class="hidden">
+                    <p class="text-[13px] text-gray-500 mb-6">Users must be approved to access the hub. Pending approvals are shown below.</p>
+                    <div id="access-pending-list" class="space-y-3"></div>
+                    <div id="access-empty" class="hidden bg-white border border-gray-200 rounded-lg p-12 text-center">
+                        <div class="bg-gray-50 p-4 rounded-lg border border-gray-200 inline-block mb-3"><i class="ph-bold ph-check-circle text-2xl text-emerald-500"></i></div>
+                        <p class="text-sm font-medium text-black">All users approved</p>
+                        <p class="text-xs text-gray-500 mt-1">No pending access requests.</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ═══════ SCHEDULE ═══════ -->
+            <section id="schedule-section" class="hidden">
+                <header class="flex flex-col sm:flex-row sm:items-end justify-between mb-8 pb-5 border-b border-gray-200">
+                    <div class="flex flex-col gap-1.5">
+                        <div class="mono-font text-[10px] tracking-[0.14em] uppercase text-gray-500">Operations · Schedule</div>
+                        <h1 class="display-font text-[36px] font-semibold text-black tracking-tight leading-none m-0">Dispatch Schedule.</h1>
+                        <div class="flex items-center gap-3 mono-font text-[10px] tracking-[0.12em] uppercase text-gray-400 mt-2">
+                            <span id="schedule-subtitle">This week's shifts</span>
+                        </div>
+                    </div>
+                    <div class="mt-4 sm:mt-0 flex items-center gap-2">
+                        <div class="flex items-center bg-white border border-gray-200 rounded-md overflow-hidden">
+                            <button id="view-week-btn" onclick="setView('week')" class="px-3 py-1.5 text-[10px] mono-font uppercase tracking-widest font-bold bg-black text-white transition-colors">Week</button>
+                            <button id="view-month-btn" onclick="setView('month')" class="px-3 py-1.5 text-[10px] mono-font uppercase tracking-widest font-bold text-gray-500 hover:bg-gray-50 transition-colors">Month</button>
+                        </div>
+                        <div id="week-nav" class="flex items-center bg-white border border-gray-200 rounded-md overflow-hidden">
+                            <button onclick="shiftWeek(-1)" class="px-2.5 py-1.5 hover:bg-gray-50 transition-colors border-r border-gray-200 text-gray-500"><i class="ph-bold ph-caret-left"></i></button>
+                            <button onclick="shiftWeek(0)" class="px-3 py-1.5 text-[10px] mono-font uppercase tracking-widest font-bold hover:bg-gray-50 transition-colors border-r border-gray-200 text-gray-600">Today</button>
+                            <button onclick="shiftWeek(1)" class="px-2.5 py-1.5 hover:bg-gray-50 transition-colors text-gray-500"><i class="ph-bold ph-caret-right"></i></button>
+                        </div>
+                        <div id="month-nav" class="hidden flex items-center bg-white border border-gray-200 rounded-md overflow-hidden">
+                            <button onclick="shiftMonth(-1)" class="px-2.5 py-1.5 hover:bg-gray-50 transition-colors border-r border-gray-200 text-gray-500"><i class="ph-bold ph-caret-left"></i></button>
+                            <button onclick="shiftMonth(0)" class="px-3 py-1.5 text-[10px] mono-font uppercase tracking-widest font-bold hover:bg-gray-50 transition-colors border-r border-gray-200 text-gray-600">This Month</button>
+                            <button onclick="shiftMonth(1)" class="px-2.5 py-1.5 hover:bg-gray-50 transition-colors text-gray-500"><i class="ph-bold ph-caret-right"></i></button>
+                        </div>
+                        <button id="add-shift-btn" onclick="openShiftModal()" class="hidden bg-black hover:bg-[#222] text-white text-xs font-semibold px-3 py-1.5 rounded-md items-center gap-1.5 whitespace-nowrap transition-colors">
+                            <i class="ph-bold ph-plus"></i>
+                            <span class="hidden sm:inline">Add Shift</span>
+                        </button>
+                    </div>
+                </header>
+
+                <div id="week-view">
+                    <div class="grid grid-cols-1 md:grid-cols-7 gap-px bg-gray-200 border border-gray-200 rounded-lg overflow-hidden shadow-[0_1px_3px_rgba(0,0,0,0.02)]" id="schedule-grid"></div>
+                </div>
+
+                <div id="month-view" class="hidden shadow-[0_1px_3px_rgba(0,0,0,0.02)] rounded-lg">
+                    <div id="month-grid-container"></div>
+                </div>
+
+                <div id="no-shifts-message" class="hidden bg-white border border-gray-200 rounded-lg p-16 text-center mt-4">
+                    <div class="bg-gray-50 p-4 rounded-lg border border-gray-200 inline-block mb-3"><i class="ph-bold ph-calendar-blank text-2xl text-gray-400"></i></div>
+                    <p class="text-sm font-medium text-black">No shifts scheduled</p>
+                    <p class="text-xs text-gray-500 mt-1">There are no shifts matching your current view.</p>
+                </div>
+            </section>
+
+            <!-- ═══════ DRIVER HUB ═══════ -->
+            <section id="driver-hub-section" class="hidden space-y-10">
+
+              <!-- Section 1: Direct Resources -->
+              <div>
+                <div class="flex items-center gap-3 mb-5">
+                  <div class="w-1 h-6 bg-black rounded-full"></div>
+                  <div>
+                    <div class="mono-font text-[9px] tracking-[0.14em] uppercase text-gray-400">Section 01</div>
+                    <h2 class="display-font text-[22px] font-semibold text-black tracking-tight leading-none">Direct Resources</h2>
+                  </div>
+                </div>
+                <div id="driver-direct-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-0 border-t border-l border-gray-200 rounded-lg overflow-hidden bg-white shadow-[0_1px_3px_rgba(0,0,0,0.02)]"></div>
+              </div>
+
+              <!-- Section 2: Vehicle Owner Resources -->
+              <div>
+                <div class="flex items-center gap-3 mb-5">
+                  <div class="w-1 h-6 bg-gray-400 rounded-full"></div>
+                  <div>
+                    <div class="mono-font text-[9px] tracking-[0.14em] uppercase text-gray-400">Section 02</div>
+                    <h2 class="display-font text-[22px] font-semibold text-black tracking-tight leading-none">Vehicle Owner Resources</h2>
+                  </div>
+                </div>
+                <div id="driver-owner-card" class="bg-white border border-gray-200 rounded-lg shadow-[0_1px_3px_rgba(0,0,0,0.02)]">
+                  <!-- Filled by JS -->
+                  <div class="p-12 text-center text-gray-400">
+                    <div class="inline-block p-3 bg-gray-50 rounded-lg border border-gray-200 mb-3"><i class="ph-bold ph-car text-2xl"></i></div>
+                    <p class="text-sm font-medium text-gray-500">Loading owner information…</p>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Section 3: Company Resources -->
+              <div>
+                <div class="flex items-center gap-3 mb-5">
+                  <div class="w-1 h-6 bg-gray-300 rounded-full"></div>
+                  <div>
+                    <div class="mono-font text-[9px] tracking-[0.14em] uppercase text-gray-400">Section 03</div>
+                    <h2 class="display-font text-[22px] font-semibold text-black tracking-tight leading-none">Company Resources</h2>
+                  </div>
+                </div>
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+
+                  <!-- Dispatch Directory -->
+                  <div class="bg-white border border-gray-200 rounded-lg shadow-[0_1px_3px_rgba(0,0,0,0.02)] flex flex-col">
+                    <div class="px-5 py-4 border-b border-gray-100 flex items-center gap-2.5">
+                      <div class="w-7 h-7 rounded bg-gray-50 border border-gray-200 flex items-center justify-center"><i class="ph-bold ph-address-book text-sm text-gray-600"></i></div>
+                      <span class="text-[14px] font-semibold text-black">Dispatch Directory</span>
+                    </div>
+                    <div id="driver-dispatch-list" class="flex-1 divide-y divide-gray-50 p-2">
+                      <div class="p-8 text-center text-gray-400 text-sm">Loading contacts…</div>
+                    </div>
+                  </div>
+
+                  <!-- HR Resources -->
+                  <div class="bg-white border border-gray-200 rounded-lg shadow-[0_1px_3px_rgba(0,0,0,0.02)] flex flex-col">
+                    <div class="px-5 py-4 border-b border-gray-100 flex items-center gap-2.5">
+                      <div class="w-7 h-7 rounded bg-gray-50 border border-gray-200 flex items-center justify-center"><i class="ph-bold ph-user-circle text-sm text-gray-600"></i></div>
+                      <span class="text-[14px] font-semibold text-black">HR Resources</span>
+                    </div>
+                    <div id="driver-hr-list" class="flex-1 divide-y divide-gray-50 p-2">
+                      <div class="p-8 text-center text-gray-400 text-sm">Loading…</div>
+                    </div>
+                  </div>
+
+                  <!-- PPV / Compliance -->
+                  <div class="bg-white border border-gray-200 rounded-lg shadow-[0_1px_3px_rgba(0,0,0,0.02)] flex flex-col">
+                    <div class="px-5 py-4 border-b border-gray-100 flex items-center gap-2.5">
+                      <div class="w-7 h-7 rounded bg-gray-50 border border-gray-200 flex items-center justify-center"><i class="ph-bold ph-shield-check text-sm text-gray-600"></i></div>
+                      <span class="text-[14px] font-semibold text-black">PPV &amp; Compliance</span>
+                    </div>
+                    <div id="driver-ppv-card" class="p-5 flex-1">
+                      <div class="p-8 text-center text-gray-400 text-sm">Loading…</div>
+                    </div>
+                  </div>
+
+                </div>
+              </div>
+
+            </section>
+
+            <!-- ═══════ OWNER PORTAL ═══════ -->
+            <section id="owner-portal-section" class="hidden">
+              <header class="flex flex-col sm:flex-row sm:items-end justify-between mb-8 pb-5 border-b border-gray-200">
+                <div class="flex flex-col gap-1.5">
+                  <div class="mono-font text-[10px] tracking-[0.14em] uppercase text-gray-500">Vehicle Owner · Portal</div>
+                  <h1 class="display-font text-[36px] font-semibold text-black tracking-tight leading-none m-0">Owner Resources.</h1>
+                  <div class="flex items-center gap-3 mono-font text-[10px] tracking-[0.12em] uppercase text-gray-400 mt-2">
+                    <span id="owner-portal-subtitle">Your vehicles and contact information</span>
+                  </div>
+                </div>
+                <button onclick="saveOwnerInfo()" class="mt-4 sm:mt-0 bg-black hover:bg-[#222] text-white text-xs font-semibold px-4 py-2 rounded-md flex items-center gap-2 transition-colors">
+                  <i class="ph-bold ph-floppy-disk"></i> Save Changes
+                </button>
+              </header>
+
+              <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+                <!-- Left: Contact + Emergency -->
+                <div class="lg:col-span-2 space-y-5">
+
+                  <!-- Contact Info -->
+                  <div class="bg-white border border-gray-200 rounded-lg shadow-[0_1px_3px_rgba(0,0,0,0.02)]">
+                    <div class="px-5 py-3.5 border-b border-gray-100 flex items-center gap-2">
+                      <i class="ph-bold ph-user text-sm text-gray-500"></i>
+                      <span class="text-[13px] font-semibold text-black">Contact Information</span>
+                    </div>
+                    <div class="p-5 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <label class="block text-[11px] font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Owner Name</label>
+                        <input id="owner-name" type="text" class="w-full border border-gray-200 rounded-md px-3 py-2 text-[13px] focus:border-black focus:ring-0">
+                      </div>
+                      <div>
+                        <label class="block text-[11px] font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Company Name</label>
+                        <input id="owner-company" type="text" class="w-full border border-gray-200 rounded-md px-3 py-2 text-[13px] focus:border-black focus:ring-0">
+                      </div>
+                      <div>
+                        <label class="block text-[11px] font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Phone</label>
+                        <input id="owner-phone" type="tel" class="w-full border border-gray-200 rounded-md px-3 py-2 text-[13px] focus:border-black focus:ring-0">
+                      </div>
+                      <div>
+                        <label class="block text-[11px] font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Email</label>
+                        <input id="owner-email" type="email" class="w-full border border-gray-200 rounded-md px-3 py-2 text-[13px] focus:border-black focus:ring-0">
+                      </div>
+                      <div class="sm:col-span-2">
+                        <label class="block text-[11px] font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Address</label>
+                        <input id="owner-address" type="text" class="w-full border border-gray-200 rounded-md px-3 py-2 text-[13px] focus:border-black focus:ring-0">
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Emergency Contact -->
+                  <div class="bg-white border border-gray-200 rounded-lg shadow-[0_1px_3px_rgba(0,0,0,0.02)]">
+                    <div class="px-5 py-3.5 border-b border-gray-100 flex items-center gap-2">
+                      <i class="ph-bold ph-first-aid text-sm text-gray-500"></i>
+                      <span class="text-[13px] font-semibold text-black">Emergency Contact</span>
+                    </div>
+                    <div class="p-5 grid grid-cols-1 sm:grid-cols-3 gap-4">
+                      <div>
+                        <label class="block text-[11px] font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Contact Name</label>
+                        <input id="owner-ec-name" type="text" class="w-full border border-gray-200 rounded-md px-3 py-2 text-[13px] focus:border-black focus:ring-0">
+                      </div>
+                      <div>
+                        <label class="block text-[11px] font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Phone</label>
+                        <input id="owner-ec-phone" type="tel" class="w-full border border-gray-200 rounded-md px-3 py-2 text-[13px] focus:border-black focus:ring-0">
+                      </div>
+                      <div>
+                        <label class="block text-[11px] font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Relationship</label>
+                        <input id="owner-ec-rel" type="text" class="w-full border border-gray-200 rounded-md px-3 py-2 text-[13px] focus:border-black focus:ring-0">
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Tow / Roadside -->
+                  <div class="bg-white border border-gray-200 rounded-lg shadow-[0_1px_3px_rgba(0,0,0,0.02)]">
+                    <div class="px-5 py-3.5 border-b border-gray-100 flex items-center gap-2">
+                      <i class="ph-bold ph-truck text-sm text-gray-500"></i>
+                      <span class="text-[13px] font-semibold text-black">Tow &amp; Roadside</span>
+                    </div>
+                    <div class="p-5 grid grid-cols-1 sm:grid-cols-3 gap-4">
+                      <div>
+                        <label class="block text-[11px] font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Tow Company</label>
+                        <input id="owner-tow-name" type="text" class="w-full border border-gray-200 rounded-md px-3 py-2 text-[13px] focus:border-black focus:ring-0">
+                      </div>
+                      <div>
+                        <label class="block text-[11px] font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Tow Phone</label>
+                        <input id="owner-tow-phone" type="tel" class="w-full border border-gray-200 rounded-md px-3 py-2 text-[13px] focus:border-black focus:ring-0">
+                      </div>
+                      <div>
+                        <label class="block text-[11px] font-semibold text-gray-500 uppercase tracking-wider mb-1.5">AAA Member #</label>
+                        <input id="owner-aaa" type="text" class="w-full border border-gray-200 rounded-md px-3 py-2 text-[13px] focus:border-black focus:ring-0">
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Insurance -->
+                  <div class="bg-white border border-gray-200 rounded-lg shadow-[0_1px_3px_rgba(0,0,0,0.02)]">
+                    <div class="px-5 py-3.5 border-b border-gray-100 flex items-center gap-2">
+                      <i class="ph-bold ph-certificate text-sm text-gray-500"></i>
+                      <span class="text-[13px] font-semibold text-black">Insurance</span>
+                    </div>
+                    <div class="p-5 grid grid-cols-1 sm:grid-cols-3 gap-4">
+                      <div>
+                        <label class="block text-[11px] font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Carrier</label>
+                        <input id="owner-ins-carrier" type="text" class="w-full border border-gray-200 rounded-md px-3 py-2 text-[13px] focus:border-black focus:ring-0">
+                      </div>
+                      <div>
+                        <label class="block text-[11px] font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Policy #</label>
+                        <input id="owner-ins-policy" type="text" class="w-full border border-gray-200 rounded-md px-3 py-2 text-[13px] focus:border-black focus:ring-0">
+                      </div>
+                      <div>
+                        <label class="block text-[11px] font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Expiry</label>
+                        <input id="owner-ins-expiry" type="date" class="w-full border border-gray-200 rounded-md px-3 py-2 text-[13px] focus:border-black focus:ring-0">
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Notes -->
+                  <div class="bg-white border border-gray-200 rounded-lg shadow-[0_1px_3px_rgba(0,0,0,0.02)]">
+                    <div class="px-5 py-3.5 border-b border-gray-100 flex items-center gap-2">
+                      <i class="ph-bold ph-note text-sm text-gray-500"></i>
+                      <span class="text-[13px] font-semibold text-black">Notes / Vehicle Assignment</span>
+                    </div>
+                    <div class="p-5">
+                      <textarea id="owner-notes" rows="4" placeholder="Vehicle assignment schedule, special instructions, notes…" class="w-full border border-gray-200 rounded-md px-3 py-2 text-[13px] focus:border-black focus:ring-0 resize-none"></textarea>
+                    </div>
+                  </div>
+
+                </div>
+
+                <!-- Right: Assigned Drivers -->
+                <div class="space-y-5">
+                  <div class="bg-white border border-gray-200 rounded-lg shadow-[0_1px_3px_rgba(0,0,0,0.02)]">
+                    <div class="px-5 py-3.5 border-b border-gray-100 flex items-center gap-2">
+                      <i class="ph-bold ph-steering-wheel text-sm text-gray-500"></i>
+                      <span class="text-[13px] font-semibold text-black">Your Drivers</span>
+                    </div>
+                    <div id="owner-drivers-list" class="divide-y divide-gray-50 max-h-[500px] overflow-y-auto custom-scroll">
+                      <div class="p-8 text-center text-gray-400 text-sm">Loading drivers…</div>
+                    </div>
+                  </div>
+                </div>
+
+              </div>
+            </section>
+
+        </div>
+    </main>
+</div>
+
+<!-- ═══════════════ SHIFT MODAL ═══════════════ -->
+<div id="shift-modal" class="fixed inset-0 z-[150] hidden modal-backdrop flex items-center justify-center p-4 bg-black/30 backdrop-blur-sm" onclick="if(event.target===this)closeShiftModal()">
+    <div class="bg-white w-full max-w-[500px] rounded-[10px] border border-black shadow-2xl slide-in max-h-[90vh] overflow-y-auto">
+        <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200">
+            <div>
+                <div class="mono-font text-[10px] tracking-[0.14em] uppercase text-gray-500 mb-1">§ <span id="shift-modal-sub">New Shift</span></div>
+                <h2 id="shift-modal-title" class="display-font text-lg font-semibold text-black leading-none">Schedule a shift</h2>
+            </div>
+            <button onclick="closeShiftModal()" class="text-gray-400 hover:text-black transition-colors"><i class="ph-bold ph-x text-lg"></i></button>
+        </div>
+        <div class="px-6 py-5 space-y-4">
+            <div>
+                <label class="block mono-font text-[10px] tracking-widest text-gray-500 uppercase mb-1.5">Employee Name</label>
+                <input id="s-name" type="text" class="w-full border border-gray-300 rounded-md p-2.5 text-[13px] focus:border-black focus:ring-0 transition-colors" placeholder="Jane Smith">
+            </div>
+            <div>
+                <label class="block mono-font text-[10px] tracking-widest text-gray-500 uppercase mb-1.5">Role</label>
+                <select id="s-role" class="w-full border border-gray-300 rounded-md p-2.5 text-[13px] focus:border-black focus:ring-0 bg-white transition-colors">
+                    <option value="OT - Dispatch">OT - Dispatch</option>
+                    <option value="DLX - Dispatch">DLX - Dispatch</option>
+                    <option value="Management">Management</option>
+                </select>
+            </div>
+            <div>
+                <label class="block mono-font text-[10px] tracking-widest text-gray-500 uppercase mb-1.5">Date</label>
+                <input id="s-date" type="date" class="w-full border border-gray-300 rounded-md p-2.5 text-[13px] focus:border-black focus:ring-0 transition-colors">
+            </div>
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block mono-font text-[10px] tracking-widest text-gray-500 uppercase mb-1.5">Start Time</label>
+                    <input id="s-start" type="time" class="w-full border border-gray-300 rounded-md p-2.5 text-[13px] focus:border-black focus:ring-0 transition-colors">
+                </div>
+                <div>
+                    <label class="block mono-font text-[10px] tracking-widest text-gray-500 uppercase mb-1.5">End Time</label>
+                    <input id="s-end" type="time" class="w-full border border-gray-300 rounded-md p-2.5 text-[13px] focus:border-black focus:ring-0 transition-colors">
+                </div>
+            </div>
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block mono-font text-[10px] tracking-widest text-gray-500 uppercase mb-1.5">Vehicle</label>
+                    <input id="s-vehicle" type="text" class="w-full border border-gray-300 rounded-md p-2.5 text-[13px] focus:border-black focus:ring-0 transition-colors" placeholder="DSP-04">
+                </div>
+                <div>
+                    <label class="block mono-font text-[10px] tracking-widest text-gray-500 uppercase mb-1.5">Zone</label>
+                    <input id="s-zone" type="text" class="w-full border border-gray-300 rounded-md p-2.5 text-[13px] focus:border-black focus:ring-0 transition-colors" placeholder="Eugene">
+                </div>
+            </div>
+            <div>
+                <label class="block mono-font text-[10px] tracking-widest text-gray-500 uppercase mb-1.5">Notes</label>
+                <textarea id="s-notes" rows="2" class="w-full border border-gray-300 rounded-md p-2.5 text-[13px] focus:border-black focus:ring-0 transition-colors" placeholder="Optional..."></textarea>
+            </div>
+        </div>
+        <div class="flex items-center justify-between px-6 py-4 border-t border-gray-100 bg-gray-50/50 rounded-b-[10px]">
+            <button id="shift-delete-btn" onclick="deleteShift()" class="hidden mono-font text-[10px] tracking-widest uppercase font-bold text-red-500 hover:text-red-700 transition-colors">Delete Shift</button>
+            <div class="ml-auto flex gap-2">
+                <button onclick="closeShiftModal()" class="bg-white border border-gray-200 hover:bg-gray-50 text-black text-[13px] font-semibold px-4 py-2 rounded-md transition-colors">Cancel</button>
+                <button onclick="saveShift()" class="bg-black hover:bg-[#222] text-white text-[13px] font-semibold px-4 py-2 rounded-md transition-colors">Save shift</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ═══════ TRIP DETAIL MODAL ═══════ -->
+<div id="trip-modal" class="fixed inset-0 z-[150] hidden modal-backdrop flex items-center justify-center p-4 bg-black/30 backdrop-blur-sm" onclick="if(event.target===this)closeTripModal()">
+    <div class="bg-white w-full max-w-[500px] rounded-[10px] border border-black shadow-2xl slide-in max-h-[90vh] overflow-y-auto">
+        <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200">
+            <div>
+                <div class="mono-font text-[10px] tracking-[0.14em] uppercase text-gray-500 mb-1">§ Trip Detail</div>
+                <h2 id="trip-modal-title" class="display-font text-lg font-semibold text-black leading-none">Trip</h2>
+            </div>
+            <button onclick="closeTripModal()" class="text-gray-400 hover:text-black transition-colors"><i class="ph-bold ph-x text-lg"></i></button>
+        </div>
+        <div id="trip-modal-body" class="px-6 py-5 space-y-3 text-[13px]"></div>
+    </div>
+</div>
+
+<!-- ═══════════════ DOCUMENT GATE (driver required-doc wall) ═══════════════ -->
+<div id="doc-gate" class="fixed inset-0 z-[90] hidden bg-white flex flex-col">
+    <div class="flex items-center justify-between px-8 py-5 border-b border-gray-200 flex-shrink-0">
+        <div class="flex items-center gap-4">
+            <div class="w-8 h-8 bg-black text-white rounded-[4px] flex items-center justify-center font-bold text-xs">D</div>
+            <div>
+                <div class="mono-font text-[10px] tracking-[0.14em] uppercase text-gray-500">Required · Before you continue</div>
+                <h2 class="display-font text-lg font-semibold text-black leading-none">Required Documents</h2>
+            </div>
+        </div>
+        <div class="flex items-center gap-4">
+            <div class="text-right hidden sm:block">
+                <div class="mono-font text-[10px] uppercase tracking-widest text-gray-400">Progress</div>
+                <div id="gate-progress-text" class="mono-font text-[13px] font-bold text-black">0 of 0</div>
+            </div>
+            <div class="w-32 bg-gray-100 rounded-full h-2">
+                <div id="gate-progress-bar" class="bg-black h-2 rounded-full transition-all duration-500" style="width:0%"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="flex-1 overflow-y-auto custom-scroll">
+        <div class="max-w-2xl mx-auto px-6 py-10">
+            <div class="mb-8">
+                <p class="text-[14px] text-gray-600 leading-relaxed">
+                    The following documents have been assigned to you and must be reviewed before you can access the hub.
+                    Click <strong>Open &amp; Acknowledge</strong> on each document. Your completion is recorded.
+                </p>
+            </div>
+            <div id="gate-doc-list" class="space-y-3"></div>
+        </div>
+    </div>
+
+    <div class="flex-shrink-0 border-t border-gray-200 px-8 py-5 flex items-center justify-between bg-white">
+        <button onclick="logout()" class="mono-font text-[10px] uppercase tracking-widest text-gray-400 hover:text-black transition-colors">Sign out</button>
+        <button id="gate-proceed-btn" onclick="proceedToHub()" disabled class="bg-black text-white text-[13px] font-semibold px-6 py-2.5 rounded-md disabled:opacity-30 disabled:cursor-not-allowed transition-all flex items-center gap-2">
+            <i class="ph-bold ph-check-circle"></i> Access hub
+        </button>
+    </div>
+</div>
+
+<!-- ═══════════════ REQUIREMENTS MODAL (admin assigns docs to drivers) ═══════════════ -->
+<div id="req-modal" class="fixed inset-0 z-[150] hidden modal-backdrop flex items-center justify-center p-4" onclick="if(event.target===this)closeReqModal()">
+    <div class="bg-white w-full max-w-[540px] rounded-[10px] border border-black shadow-2xl slide-in max-h-[85vh] flex flex-col">
+        <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200 flex-shrink-0">
+            <div>
+                <div class="mono-font text-[10px] tracking-[0.14em] uppercase text-gray-500 mb-1">§ Document Requirements</div>
+                <h2 id="req-modal-title" class="display-font text-lg font-semibold text-black leading-none truncate max-w-xs"></h2>
+            </div>
+            <button onclick="closeReqModal()" class="text-gray-400 hover:text-black transition-colors flex-shrink-0 ml-4"><i class="ph-bold ph-x text-lg"></i></button>
+        </div>
+
+        <div class="px-6 py-5 flex-1 overflow-y-auto">
+            <!-- Scope selector -->
+            <div class="mb-5">
+                <div class="mono-font text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3">Who must complete this document?</div>
+                <div class="space-y-2">
+                    <label class="flex items-center gap-3 p-3 border border-gray-200 rounded-lg cursor-pointer hover:border-black transition-colors has-[:checked]:border-black has-[:checked]:bg-gray-50">
+                        <input type="radio" name="req-scope" value="none" class="accent-black" onchange="updateReqScope()">
+                        <div>
+                            <div class="text-[13px] font-semibold text-black">Not required</div>
+                            <div class="text-[11px] text-gray-500">No drivers are required to read this document</div>
+                        </div>
+                    </label>
+                    <label class="flex items-center gap-3 p-3 border border-gray-200 rounded-lg cursor-pointer hover:border-black transition-colors has-[:checked]:border-black has-[:checked]:bg-gray-50">
+                        <input type="radio" name="req-scope" value="all" class="accent-black" onchange="updateReqScope()">
+                        <div>
+                            <div class="text-[13px] font-semibold text-black">All drivers</div>
+                            <div class="text-[11px] text-gray-500">Every driver must acknowledge before accessing the hub</div>
+                        </div>
+                    </label>
+                    <label class="flex items-center gap-3 p-3 border border-gray-200 rounded-lg cursor-pointer hover:border-black transition-colors has-[:checked]:border-black has-[:checked]:bg-gray-50">
+                        <input type="radio" name="req-scope" value="specific" class="accent-black" onchange="updateReqScope()">
+                        <div>
+                            <div class="text-[13px] font-semibold text-black">Specific drivers</div>
+                            <div class="text-[11px] text-gray-500">Choose which drivers must read this document</div>
+                        </div>
+                    </label>
+                </div>
+            </div>
+
+            <!-- Driver picker (shown when scope = specific) -->
+            <div id="req-driver-picker" class="hidden">
+                <div class="mono-font text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Select drivers</div>
+                <div class="relative mb-2">
+                    <i class="ph ph-magnifying-glass absolute left-3 top-2 text-gray-400 text-sm"></i>
+                    <input type="text" id="req-driver-search" oninput="filterReqDrivers()" placeholder="Search drivers…"
+                        class="w-full bg-white border border-gray-200 text-[13px] rounded-md pl-8 pr-3 py-1.5 focus:border-black focus:ring-0">
+                </div>
+                <div id="req-driver-list" class="border border-gray-200 rounded-lg overflow-hidden max-h-52 overflow-y-auto divide-y divide-gray-100"></div>
+            </div>
+
+            <!-- Completions summary -->
+            <div id="req-completions-section" class="hidden mt-5 pt-5 border-t border-gray-100">
+                <div class="mono-font text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3">Driver completions</div>
+                <div id="req-completions-list" class="space-y-2"></div>
+            </div>
+        </div>
+
+        <div class="flex items-center justify-end gap-2 px-6 py-4 border-t border-gray-100 bg-gray-50/50 rounded-b-[10px] flex-shrink-0">
+            <button onclick="closeReqModal()" class="bg-white border border-gray-200 hover:bg-gray-50 text-black text-[13px] font-semibold px-4 py-2 rounded-md">Cancel</button>
+            <button onclick="saveRequirements()" class="bg-black hover:bg-[#222] text-white text-[13px] font-semibold px-4 py-2 rounded-md">Save requirements</button>
+        </div>
+    </div>
+</div>
+
+<!-- ═══════════════ UPLOAD MODAL ═══════════════ -->
+<div id="upload-modal" class="fixed inset-0 z-[150] hidden modal-backdrop flex items-center justify-center p-4 bg-black/30 backdrop-blur-sm" onclick="if(event.target===this)closeUploadModal()">
+    <div class="bg-white w-full max-w-[500px] rounded-[10px] border border-black shadow-2xl slide-in max-h-[90vh] overflow-y-auto">
+        <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200">
+            <div>
+                <div class="mono-font text-[10px] tracking-[0.14em] uppercase text-gray-500 mb-1">§ Upload</div>
+                <h2 class="display-font text-lg font-semibold text-black leading-none">Upload document</h2>
+            </div>
+            <button onclick="closeUploadModal()" class="text-gray-400 hover:text-black transition-colors"><i class="ph-bold ph-x text-lg"></i></button>
+        </div>
+        <div class="px-6 py-5 space-y-4">
+            <div>
+                <label class="block mono-font text-[10px] tracking-widest text-gray-500 uppercase mb-1.5">File</label>
+                <div id="upload-drop-zone" class="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center cursor-pointer hover:border-black hover:bg-gray-50 transition-all" onclick="document.getElementById('upload-file-input').click()" ondragover="event.preventDefault();this.classList.add('border-black','bg-gray-50')" ondragleave="this.classList.remove('border-black','bg-gray-50')" ondrop="handleFileDrop(event)">
+                    <i class="ph-bold ph-upload-simple text-2xl text-gray-400 mb-2"></i>
+                    <p class="text-[13px] text-gray-500">Drop file here or <span class="font-semibold text-black underline">browse</span></p>
+                    <p class="mono-font text-[10px] text-gray-400 mt-1 uppercase tracking-wider">PDF, DOC, XLS, PNG, JPG — max 50 MB</p>
+                    <p id="upload-filename" class="mono-font text-[11px] text-black font-semibold mt-3 hidden"></p>
+                </div>
+                <input type="file" id="upload-file-input" class="hidden" onchange="handleFileSelect(event)" accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg,.csv,.txt">
+            </div>
+            <div>
+                <label class="block mono-font text-[10px] tracking-widest text-gray-500 uppercase mb-1.5">Document Name</label>
+                <input type="text" id="upload-name" class="w-full border border-gray-300 rounded-md p-2.5 text-[13px] focus:border-black focus:ring-0" placeholder="e.g. Employee Handbook 2026">
+            </div>
+            <div>
+                <label class="block mono-font text-[10px] tracking-widest text-gray-500 uppercase mb-1.5">Folder</label>
+                <select id="upload-folder" class="w-full border border-gray-300 rounded-md p-2.5 text-[13px] focus:border-black focus:ring-0 bg-white">
+                    <option value="broker">Broker contracts</option>
+                    <option value="hr">HR &amp; policy</option>
+                    <option value="safety">Safety &amp; DOT</option>
+                    <option value="training">Training</option>
+                    <option value="ops">Operations</option>
+                    <option value="finance">Finance</option>
+                    <option value="vehicle">Vehicle records</option>
+                    <option value="forms">Forms</option>
+                </select>
+            </div>
+            <div>
+                <label class="block mono-font text-[10px] tracking-widest text-gray-500 uppercase mb-1.5">Tags <span class="text-gray-400 normal-case font-normal">(comma separated)</span></label>
+                <input type="text" id="upload-tags" class="w-full border border-gray-300 rounded-md p-2.5 text-[13px] focus:border-black focus:ring-0" placeholder="e.g. contract, signed, 2026">
+            </div>
+            <div id="upload-progress-bar" class="hidden">
+                <div class="w-full bg-gray-100 rounded-full h-1.5">
+                    <div id="upload-progress-fill" class="bg-black h-1.5 rounded-full transition-all duration-300" style="width:0%"></div>
+                </div>
+                <p id="upload-progress-text" class="mono-font text-[10px] text-gray-500 mt-1.5 text-center uppercase tracking-wider">Uploading…</p>
+            </div>
+        </div>
+        <div class="flex items-center justify-end gap-2 px-6 py-4 border-t border-gray-100 bg-gray-50/50 rounded-b-[10px]">
+            <button onclick="closeUploadModal()" class="bg-white border border-gray-200 hover:bg-gray-50 text-black text-[13px] font-semibold px-4 py-2 rounded-md transition-colors">Cancel</button>
+            <button onclick="submitUpload()" id="upload-submit-btn" class="bg-black hover:bg-[#222] text-white text-[13px] font-semibold px-4 py-2 rounded-md transition-colors flex items-center gap-2">
+                <i class="ph-bold ph-upload-simple"></i> Upload
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- ═══════════════ USER MODAL (Settings) ═══════════════ -->
+<div id="user-modal" class="fixed inset-0 z-[150] hidden modal-backdrop flex items-center justify-center p-4 bg-black/30 backdrop-blur-sm" onclick="if(event.target===this)closeUserModal()">
+    <div class="bg-white w-full max-w-[440px] rounded-[10px] border border-black shadow-2xl slide-in">
+        <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200">
+            <div>
+                <div class="mono-font text-[10px] tracking-[0.14em] uppercase text-gray-500 mb-1">§ <span id="user-modal-sub">New User</span></div>
+                <h2 id="user-modal-title" class="display-font text-lg font-semibold text-black leading-none">Add staff account</h2>
+            </div>
+            <button onclick="closeUserModal()" class="text-gray-400 hover:text-black transition-colors"><i class="ph-bold ph-x text-lg"></i></button>
+        </div>
+        <div class="px-6 py-5 space-y-4">
+            <div id="user-modal-new-fields">
+                <div class="mb-4">
+                    <label class="block mono-font text-[10px] tracking-widest text-gray-500 uppercase mb-1.5">Full Name</label>
+                    <input type="text" id="um-name" class="w-full border border-gray-300 rounded-md p-2.5 text-[13px] focus:border-black focus:ring-0" placeholder="Jane Smith">
+                </div>
+                <div class="mb-4">
+                    <label class="block mono-font text-[10px] tracking-widest text-gray-500 uppercase mb-1.5">Email</label>
+                    <input type="email" id="um-email" class="w-full border border-gray-300 rounded-md p-2.5 text-[13px] focus:border-black focus:ring-0" placeholder="jane@oregontaxi.com">
+                </div>
+                <div class="mb-4">
+                    <label class="block mono-font text-[10px] tracking-widests text-gray-500 uppercase mb-1.5">Temporary Password</label>
+                    <input type="text" id="um-password" class="w-full border border-gray-300 rounded-md p-2.5 text-[13px] focus:border-black focus:ring-0" placeholder="Temp password — user should change">
+                </div>
+            </div>
+            <div>
+                <label class="block mono-font text-[10px] tracking-widest text-gray-500 uppercase mb-1.5">Role</label>
+                <select id="um-role" class="w-full border border-gray-300 rounded-md p-2.5 text-[13px] focus:border-black focus:ring-0 bg-white">
+                    <option value="dispatcher">Dispatcher</option>
+                    <option value="driver">Driver</option>
+          <option value="admin">Owner</option>
+                    <option value="finance">Finance</option>
+                    <option value="management">Management</option>
+                    <option value="maintenance">Maintenance</option>
+                    <option value="admin">Admin</option>
+                </select>
+            </div>
+            <div>
+                <label class="block mono-font text-[10px] tracking-widest text-gray-500 uppercase mb-1.5">Access</label>
+                <div class="flex items-center gap-3 p-3 border border-gray-200 rounded-md">
+                    <input type="checkbox" id="um-approved" class="w-4 h-4 accent-black" checked>
+                    <label for="um-approved" class="text-[13px] text-black font-medium cursor-pointer">Approved — can sign in and access hub</label>
+                </div>
+            </div>
+            <div id="user-modal-tool-access" class="hidden">
+                <div class="flex items-center justify-between mb-1.5">
+                    <label class="block mono-font text-[10px] tracking-widest text-gray-500 uppercase">Tool Access</label>
+                    <span class="mono-font text-[9px] text-gray-400 uppercase">Overrides role defaults</span>
+                </div>
+                <div class="border border-gray-200 rounded-md divide-y divide-gray-100 max-h-[260px] overflow-y-auto">
+                    <div id="um-tool-access-rows"></div>
+                </div>
+            </div>
+        </div>
+        <div class="flex items-center justify-between px-6 py-4 border-t border-gray-100 bg-gray-50/50 rounded-b-[10px]">
+            <button id="um-delete-btn" onclick="deleteUser()" class="hidden mono-font text-[10px] tracking-widest uppercase font-bold text-red-500 hover:text-red-700 transition-colors">Remove User</button>
+            <div class="ml-auto flex gap-2">
+                <button onclick="closeUserModal()" class="bg-white border border-gray-200 hover:bg-gray-50 text-black text-[13px] font-semibold px-4 py-2 rounded-md">Cancel</button>
+                <button onclick="saveUser()" class="bg-black hover:bg-[#222] text-white text-[13px] font-semibold px-4 py-2 rounded-md">Save</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="data.js"></script>
+
+<script type="module">
+    import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
+
+    const SUPABASE_URL = 'https://mdutrtmdjodabggirntb.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kdXRydG1kam9kYWJnZ2lybnRiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ5MDk3MzQsImV4cCI6MjA5MDQ4NTczNH0.GlrbsjnkBSwhnguBQUCb418NxvRO02PhXhBJZ69xTi4';
+    const CLOUDFLARE_WORKER_URL = 'https://long-moon-8c26.oregontaxieugene.workers.dev';
+
+    const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    window.state = { isLoginMode: true, currentUser: null, searchQuery: '' };
+
+    // ==================== NAVIGATION ====================
+    const ALL_SECTIONS = ['dashboard','trips','documents','schedule','settings','driver-hub','owner-portal'];
+
+    window.showSection = function(sectionId) {
+        const titleMap = { dashboard:'Dashboard', trips:'Trips', schedule:'Schedule', documents:'Documents', settings:'Settings', 'driver-hub':'Driver Hub', 'owner-portal':'Owner Portal' };
+        document.getElementById('crumb-current').textContent = titleMap[sectionId] || sectionId;
+
+        ALL_SECTIONS.forEach(s => {
+            const el = document.getElementById(s + '-section');
+            if (el) el.classList.toggle('hidden', s !== sectionId);
+        });
+
+        document.querySelectorAll('.nav-btn').forEach(btn => {
+            const isActive = btn.id === 'nav-' + sectionId;
+            btn.classList.toggle('bg-gray-100', isActive);
+            btn.classList.toggle('text-black', isActive);
+            btn.classList.toggle('font-semibold', isActive);
+        });
+
+        if (sectionId === 'documents') renderDocuments();
+        if (sectionId === 'trips') loadTrips();
+        if (sectionId === 'settings') loadSettings();
+        if (sectionId === 'driver-hub') loadDriverHub();
+        if (sectionId === 'owner-portal') loadOwnerPortal();
+    };
+
+    // ==================== DOCUMENTS (LIVE SUPABASE) ====================
+    const DOC_FOLDERS = window.HUB_DATA?.documentFolders || [];
+    let activeFolder = 'all';
+    let allDocsCache = [];
+
+    window.setActiveFolder = function(id) {
+        activeFolder = id;
+        renderDocuments();
+    };
+
+    window.renderDocuments = async function() {
+        const listEl = document.getElementById('doc-list');
+        const loadingEl = document.getElementById('doc-loading');
+
+        if (allDocsCache.length === 0) {
+            loadingEl.classList.remove('hidden');
+            listEl.innerHTML = '';
+            const { data, error } = await supabase
+                .from('hub_documents')
+                .select('*')
+                .order('created_at', { ascending: false });
+            loadingEl.classList.add('hidden');
+            if (error) { listEl.innerHTML = `<div class="p-12 text-center text-gray-500 text-[13px]">Failed to load documents.</div>`; return; }
+            allDocsCache = data || [];
+        }
+
+        const searchVal = (document.getElementById('doc-search')?.value || '').toLowerCase();
+        let docs = allDocsCache;
+        if (activeFolder !== 'all') docs = docs.filter(d => d.folder === activeFolder);
+        if (searchVal) docs = docs.filter(d => d.name.toLowerCase().includes(searchVal) || (d.tags || []).some(t => t.toLowerCase().includes(searchVal)));
+
+        document.getElementById('doc-count-meta').textContent = `${docs.length} file${docs.length !== 1 ? 's' : ''}`;
+
+        const canAdmin = window.state.currentUser && ['admin','jay'].includes(window.state.currentUser.role);
+
+        let sidebarHtml = `
+            <div class="bg-gray-50/50 px-4 py-3 border-b border-gray-200 mono-font text-[10px] font-bold text-gray-400 uppercase tracking-widest">Folders</div>
+            <button onclick="setActiveFolder('all')" class="w-full flex items-center gap-3 px-4 py-3 text-[13px] border-b border-gray-100 ${activeFolder === 'all' ? 'bg-black text-white font-semibold' : 'text-gray-700 hover:bg-gray-50 font-medium'} text-left transition-colors">
+                <i class="ph-bold ph-stack text-[16px]"></i><span>All files</span>
+                <span class="ml-auto mono-font text-[10px] ${activeFolder === 'all' ? 'text-gray-300' : 'text-gray-400'}">${allDocsCache.length}</span>
+            </button>`;
+        DOC_FOLDERS.forEach(f => {
+            const count = allDocsCache.filter(d => d.folder === f.id).length;
+            const isActive = activeFolder === f.id;
+            sidebarHtml += `
+                <button onclick="setActiveFolder('${f.id}')" class="w-full flex items-center gap-3 px-4 py-3 text-[13px] border-b border-gray-100 ${isActive ? 'bg-black text-white font-semibold' : 'text-gray-700 hover:bg-gray-50 font-medium'} text-left transition-colors">
+                    <i class="ph-bold ${f.icon} text-[16px]"></i><span>${f.label}</span>
+                    <span class="ml-auto mono-font text-[10px] ${isActive ? 'text-gray-300' : 'text-gray-400'}">${count}</span>
+                </button>`;
+        });
+        document.getElementById('doc-sidebar').innerHTML = sidebarHtml;
+
+        // Load requirements counts for admin view
+        let reqCounts = {};
+        if (canAdmin) {
+            const { data: reqs } = await supabase.from('document_requirements').select('document_id, driver_id');
+            (reqs || []).forEach(r => {
+                if (!reqCounts[r.document_id]) reqCounts[r.document_id] = { all: false, specific: 0 };
+                if (r.driver_id === null) reqCounts[r.document_id].all = true;
+                else reqCounts[r.document_id].specific++;
+            });
+        }
+
+        const cols = canAdmin ? '40px 1fr 130px 120px 70px 110px' : '40px 1fr 130px 120px 70px';
+        let listHtml = `
+            <div class="grid gap-3 items-center bg-gray-50/50 px-4 py-2.5 border-b border-gray-200 mono-font text-[10px] font-bold text-gray-400 uppercase tracking-widest" style="grid-template-columns:${cols}">
+                <div></div><div>Name</div><div>Folder</div><div>Uploaded</div><div>Size</div>${canAdmin ? '<div>Required</div>' : ''}
+            </div>`;
+
+        if (docs.length === 0) {
+            listHtml += `<div class="p-12 text-center text-gray-500 text-[13px]">No documents found. Upload the first one!</div>`;
+        } else {
+            docs.forEach(d => {
+                const ext = (d.file_type || '').toLowerCase();
+                let bg='bg-gray-100', txtColor='text-gray-600', lbl='FILE';
+                if (ext === 'pdf') { bg='bg-red-50'; txtColor='text-red-700'; lbl='PDF'; }
+                else if (['doc','docx'].includes(ext)) { bg='bg-blue-50'; txtColor='text-blue-700'; lbl='DOC'; }
+                else if (['xls','xlsx'].includes(ext)) { bg='bg-emerald-50'; txtColor='text-emerald-700'; lbl='XLS'; }
+                else if (['png','jpg','jpeg'].includes(ext)) { bg='bg-purple-50'; txtColor='text-purple-700'; lbl='IMG'; }
+                else if (ext === 'csv') { bg='bg-teal-50'; txtColor='text-teal-700'; lbl='CSV'; }
+                const folder = DOC_FOLDERS.find(x => x.id === d.folder);
+                const sizeStr = d.file_size ? formatFileSize(d.file_size) : '—';
+                const dateStr = d.created_at ? new Date(d.created_at).toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' }) : '—';
+                const tags = (d.tags || []).slice(0,2).map(t => `<span class="mono-font text-[8px] bg-gray-100 text-gray-500 px-1 rounded uppercase tracking-wider">#${t}</span>`).join('');
+
+                let reqBadge = '';
+                if (canAdmin) {
+                    const rc = reqCounts[d.id];
+                    if (rc?.all) {
+                        reqBadge = `<button onclick="openReqModal('${d.id}','${d.name.replace(/'/g,"\\'")}')" class="flex items-center gap-1 mono-font text-[9px] font-bold uppercase tracking-wider px-2 py-1 rounded-full bg-black text-white hover:bg-gray-800 transition-colors whitespace-nowrap"><i class="ph-fill ph-users text-[10px]"></i> All drivers</button>`;
+                    } else if (rc?.specific > 0) {
+                        reqBadge = `<button onclick="openReqModal('${d.id}','${d.name.replace(/'/g,"\\'")}')" class="flex items-center gap-1 mono-font text-[9px] font-bold uppercase tracking-wider px-2 py-1 rounded-full bg-amber-50 text-amber-700 hover:bg-amber-100 transition-colors whitespace-nowrap"><i class="ph-fill ph-user text-[10px]"></i> ${rc.specific} driver${rc.specific!==1?'s':''}</button>`;
+                    } else {
+                        reqBadge = `<button onclick="openReqModal('${d.id}','${d.name.replace(/'/g,"\\'")}')" class="flex items-center gap-1 mono-font text-[9px] font-bold uppercase tracking-wider px-2 py-1 rounded-full bg-gray-50 text-gray-400 border border-gray-200 hover:border-black hover:text-black transition-colors whitespace-nowrap"><i class="ph-bold ph-plus text-[10px]"></i> Assign</button>`;
+                    }
+                }
+
+                listHtml += `
+                    <div class="grid gap-3 items-center px-4 py-3 border-b border-gray-100 hover:bg-gray-50 transition-colors text-[13px] group" style="grid-template-columns:${cols}">
+                        <div class="w-8 h-[34px] rounded ${bg} ${txtColor} flex items-center justify-center mono-font text-[9px] font-bold border border-current opacity-80">${lbl}</div>
+                        <div class="min-w-0 pr-4">
+                            <div class="font-semibold truncate text-black flex items-center gap-2">
+                                <button onclick="downloadDoc('${d.id}','${d.storage_path}','${d.name.replace(/'/g,"\\'")}','${ext}')" class="truncate text-left hover:underline">${d.name}</button>
+                                ${d.pinned ? '<i class="ph-fill ph-push-pin text-[#D97757] text-xs flex-shrink-0"></i>' : ''}
+                            </div>
+                            <div class="flex gap-1.5 mt-1 flex-wrap">${tags}</div>
+                        </div>
+                        <div class="text-gray-600 text-xs flex items-center gap-1.5 truncate">
+                            ${folder ? `<i class="ph-bold ${folder.icon} text-gray-400"></i>${folder.label}` : d.folder}
+                        </div>
+                        <div class="mono-font text-[10px] text-gray-500">${dateStr}<br><span class="text-gray-400">${d.uploaded_by_name || ''}</span></div>
+                        <div class="mono-font text-[10px] text-gray-500">${sizeStr}</div>
+                        ${canAdmin ? `<div class="flex items-center gap-2">
+                            ${reqBadge}
+                            <div class="flex gap-1 ml-auto">
+                                <button onclick="togglePin('${d.id}',${d.pinned})" title="${d.pinned ? 'Unpin' : 'Pin'}" class="text-gray-400 hover:text-[#D97757] transition-colors"><i class="ph-${d.pinned ? 'fill' : 'bold'} ph-push-pin text-sm"></i></button>
+                                <button onclick="deleteDoc('${d.id}','${d.storage_path}')" title="Delete" class="text-gray-400 hover:text-red-500 transition-colors"><i class="ph-bold ph-trash text-sm"></i></button>
+                            </div>
+                        </div>` : ''}
+                    </div>`;
+            });
+        }
+        listEl.innerHTML = listHtml;
+    };
+
+    function formatFileSize(bytes) {
+        if (!bytes) return '—';
+        if (bytes < 1024) return bytes + ' B';
+        if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(0) + ' KB';
+        return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+    }
+
+    window.downloadDoc = async function(id, storagePath, name, ext) {
+        if (!storagePath) { alert('No file attached to this document.'); return; }
+        const { data, error } = await supabase.storage.from('hub-documents').createSignedUrl(storagePath, 120);
+        if (error) { alert('Could not open file: ' + error.message); return; }
+        const a = document.createElement('a');
+        a.href = data.signedUrl;
+        a.target = '_blank';
+        a.rel = 'noopener';
+        a.click();
+    };
+
+    window.togglePin = async function(id, currentlyPinned) {
+        await supabase.from('hub_documents').update({ pinned: !currentlyPinned }).eq('id', id);
+        allDocsCache = [];
+        renderDocuments();
+    };
+
+    window.deleteDoc = async function(id, storagePath) {
+        if (!confirm('Delete this document? This cannot be undone.')) return;
+        if (storagePath) await supabase.storage.from('hub-documents').remove([storagePath]);
+        await supabase.from('hub_documents').delete().eq('id', id);
+        allDocsCache = [];
+        renderDocuments();
+    };
+
+    // ==================== UPLOAD MODAL ====================
+    let uploadFile = null;
+
+    window.openUploadModal = function() {
+        uploadFile = null;
+        document.getElementById('upload-file-input').value = '';
+        document.getElementById('upload-name').value = '';
+        document.getElementById('upload-tags').value = '';
+        document.getElementById('upload-filename').classList.add('hidden');
+        document.getElementById('upload-progress-bar').classList.add('hidden');
+        document.getElementById('upload-modal').classList.remove('hidden');
+    };
+
+    window.closeUploadModal = function() {
+        document.getElementById('upload-modal').classList.add('hidden');
+        uploadFile = null;
+    };
+
+    window.handleFileDrop = function(e) {
+        e.preventDefault();
+        document.getElementById('upload-drop-zone').classList.remove('border-black','bg-gray-50');
+        const file = e.dataTransfer.files[0];
+        if (file) setUploadFile(file);
+    };
+
+    window.handleFileSelect = function(e) {
+        const file = e.target.files[0];
+        if (file) setUploadFile(file);
+    };
+
+    function setUploadFile(file) {
+        uploadFile = file;
+        const nameEl = document.getElementById('upload-filename');
+        nameEl.textContent = `${file.name} (${formatFileSize(file.size)})`;
+        nameEl.classList.remove('hidden');
+        if (!document.getElementById('upload-name').value) {
+            document.getElementById('upload-name').value = file.name.replace(/\.[^.]+$/, '');
+        }
+    }
+
+    window.submitUpload = async function() {
+        if (!uploadFile) { alert('Please select a file to upload.'); return; }
+        const docName = document.getElementById('upload-name').value.trim();
+        if (!docName) { alert('Please enter a document name.'); return; }
+        const folder = document.getElementById('upload-folder').value;
+        const tagsRaw = document.getElementById('upload-tags').value;
+        const tags = tagsRaw.split(',').map(t => t.trim()).filter(Boolean);
+        const ext = uploadFile.name.split('.').pop().toLowerCase();
+        const storagePath = `${folder}/${Date.now()}_${uploadFile.name.replace(/[^a-zA-Z0-9._-]/g,'_')}`;
+
+        const btn = document.getElementById('upload-submit-btn');
+        btn.disabled = true;
+        btn.innerHTML = '<div class="inline-block animate-spin w-4 h-4 border-2 border-white/30 border-t-white rounded-full"></div> Uploading…';
+        document.getElementById('upload-progress-bar').classList.remove('hidden');
+
+        const { error: storageError } = await supabase.storage.from('hub-documents').upload(storagePath, uploadFile, { cacheControl:'3600', upsert:false });
+        if (storageError) {
+            alert('Upload failed: ' + storageError.message);
+            btn.disabled = false;
+            btn.innerHTML = '<i class="ph-bold ph-upload-simple"></i> Upload';
+            document.getElementById('upload-progress-bar').classList.add('hidden');
+            return;
+        }
+
+        document.getElementById('upload-progress-fill').style.width = '60%';
+
+        const { error: dbError } = await supabase.from('hub_documents').insert({
+            name: docName,
+            folder,
+            file_type: ext,
+            file_size: uploadFile.size,
+            storage_path: storagePath,
+            tags,
+            uploaded_by: window.state.currentUser.id,
+            uploaded_by_name: window.state.currentUser.name,
+        });
+
+        document.getElementById('upload-progress-fill').style.width = '100%';
+
+        if (dbError) { alert('File uploaded but metadata save failed: ' + dbError.message); }
+
+        setTimeout(() => {
+            closeUploadModal();
+            allDocsCache = [];
+            renderDocuments();
+        }, 400);
+    };
+
+    // ==================== DOCUMENT GATE ====================
+    let pendingGateDocs = [];
+    let openedInGate = new Set(); // tracks docs the driver clicked "open" on this session
+
+    async function fetchPendingRequirements() {
+        const uid = window.state.currentUser.id;
+        const email = window.state.currentUser.email || '';
+
+        // Find this driver's record in the drivers table (by profile_id or email)
+        let driverRecordId = null;
+        const driverId = email.match(/^driver(\d+)@/)?.[1];
+        if (driverId) {
+            const { data: dr } = await supabase.from('drivers').select('id').eq('driver_id', driverId).maybeSingle();
+            driverRecordId = dr?.id || null;
+        }
+        if (!driverRecordId) {
+            const { data: dr } = await supabase.from('drivers').select('id').eq('profile_id', uid).maybeSingle();
+            driverRecordId = dr?.id || null;
+        }
+
+        // Fetch all requirements that apply (global + specific to this driver)
+        const { data: reqs } = await supabase
+            .from('document_requirements')
+            .select('document_id, driver_id')
+            .or(`driver_id.is.null${driverRecordId ? `,driver_id.eq.${driverRecordId}` : ''}`);
+
+        if (!reqs || reqs.length === 0) return [];
+
+        const docIds = [...new Set((reqs).map(r => r.document_id))];
+
+        // Fetch completions for this user
+        const { data: done } = await supabase
+            .from('document_completions')
+            .select('document_id')
+            .eq('profile_id', uid);
+
+        const doneIds = new Set((done || []).map(d => d.document_id));
+        const pendingDocIds = docIds.filter(id => !doneIds.has(id));
+        if (pendingDocIds.length === 0) return [];
+
+        // Load document metadata for pending docs
+        const { data: docs } = await supabase
+            .from('hub_documents')
+            .select('id, name, file_type, storage_path')
+            .in('id', pendingDocIds);
+
+        window.state._driverRecordId = driverRecordId;
+        return docs || [];
+    }
+
+    function showDocumentGate(docs) {
+        pendingGateDocs = docs;
+        openedInGate = new Set();
+        document.getElementById('doc-gate').classList.remove('hidden');
+        renderGate();
+    }
+
+    function renderGate() {
+        const total = pendingGateDocs.length;
+        const done  = pendingGateDocs.filter(d => openedInGate.has(d.id)).length;
+        const pct   = total > 0 ? Math.round((done / total) * 100) : 0;
+
+        document.getElementById('gate-progress-text').textContent = `${done} of ${total}`;
+        document.getElementById('gate-progress-bar').style.width = pct + '%';
+        document.getElementById('gate-proceed-btn').disabled = done < total;
+
+        const list = document.getElementById('gate-doc-list');
+        list.innerHTML = pendingGateDocs.map(d => {
+            const isDone = openedInGate.has(d.id);
+            const ext = (d.file_type || '').toUpperCase() || 'FILE';
+            let bg='bg-gray-100', txtColor='text-gray-600';
+            if (d.file_type==='pdf') { bg='bg-red-50'; txtColor='text-red-700'; }
+            else if (['doc','docx'].includes(d.file_type)) { bg='bg-blue-50'; txtColor='text-blue-700'; }
+            return `
+                <div class="flex items-center gap-4 p-4 rounded-lg border ${isDone ? 'border-emerald-200 bg-emerald-50' : 'border-gray-200 bg-white'} transition-all">
+                    <div class="w-10 h-10 flex-shrink-0 rounded ${bg} ${txtColor} flex items-center justify-center mono-font text-[10px] font-bold border border-current opacity-80">${ext}</div>
+                    <div class="flex-1 min-w-0">
+                        <div class="font-semibold text-[13px] text-black truncate">${d.name}</div>
+                        <div class="mono-font text-[10px] text-gray-400 mt-0.5 uppercase tracking-wider">${isDone ? 'Acknowledged ✓' : 'Pending review'}</div>
+                    </div>
+                    ${isDone
+                        ? `<div class="flex-shrink-0"><i class="ph-fill ph-check-circle text-emerald-500 text-2xl"></i></div>`
+                        : `<button onclick="openAndAcknowledge('${d.id}','${d.storage_path || ''}')"
+                                class="flex-shrink-0 bg-black hover:bg-[#222] text-white text-[12px] font-semibold px-4 py-2 rounded-md flex items-center gap-2 transition-colors whitespace-nowrap">
+                                <i class="ph-bold ph-arrow-square-out"></i> Open &amp; Acknowledge
+                           </button>`
+                    }
+                </div>`;
+        }).join('');
+    }
+
+    window.openAndAcknowledge = async function(docId, storagePath) {
+        // Open the document
+        if (storagePath) {
+            const { data } = await supabase.storage.from('hub-documents').createSignedUrl(storagePath, 300);
+            if (data?.signedUrl) {
+                const a = document.createElement('a');
+                a.href = data.signedUrl; a.target = '_blank'; a.rel = 'noopener'; a.click();
+            }
+        }
+
+        // Record completion
+        await supabase.from('document_completions').upsert({
+            document_id: docId,
+            profile_id: window.state.currentUser.id,
+            driver_record_id: window.state._driverRecordId || null,
+        }, { onConflict: 'document_id,profile_id' });
+
+        openedInGate.add(docId);
+        renderGate();
+    };
+
+    window.proceedToHub = function() {
+        document.getElementById('doc-gate').classList.add('hidden');
+        showSection('driver-hub');
+    };
+
+    // ==================== REQUIREMENTS MODAL ====================
+    let reqModalDocId = null;
+    let allDriversCache = [];
+
+    window.openReqModal = async function(docId, docName) {
+        reqModalDocId = docId;
+        document.getElementById('req-modal-title').textContent = docName;
+        document.getElementById('req-modal').classList.remove('hidden');
+
+        // Load all drivers and current requirements for this doc
+        const [{ data: drivers }, { data: reqs }, { data: completions }] = await Promise.all([
+            supabase.from('drivers').select('id, first_name, last_name, driver_id, status').order('last_name, first_name'),
+            supabase.from('document_requirements').select('driver_id').eq('document_id', docId),
+            supabase.from('document_completions').select('profile_id, completed_at, driver_record_id').eq('document_id', docId),
+        ]);
+
+        allDriversCache = drivers || [];
+        const hasAllDrivers = (reqs || []).some(r => r.driver_id === null);
+        const specificIds = (reqs || []).filter(r => r.driver_id !== null).map(r => r.driver_id);
+
+        // Set radio
+        const scope = hasAllDrivers ? 'all' : specificIds.length > 0 ? 'specific' : 'none';
+        document.querySelector(`input[name="req-scope"][value="${scope}"]`).checked = true;
+        updateReqScope();
+
+        // Render driver list
+        renderReqDriverList(specificIds);
+
+        // Completions section
+        const compSection = document.getElementById('req-completions-section');
+        const compList    = document.getElementById('req-completions-list');
+        if ((completions || []).length > 0) {
+            compSection.classList.remove('hidden');
+            compList.innerHTML = completions.map(c => {
+                const dr = allDriversCache.find(d => d.id === c.driver_record_id);
+                const name = dr ? `${dr.first_name} ${dr.last_name}${dr.driver_id ? ` #${dr.driver_id}` : ''}` : `User ${c.profile_id.substring(0,8)}`;
+                const when = new Date(c.completed_at).toLocaleString('en-US', { month:'short', day:'numeric', hour:'numeric', minute:'2-digit' });
+                return `<div class="flex items-center justify-between text-[12px]">
+                    <div class="flex items-center gap-2"><i class="ph-fill ph-check-circle text-emerald-500"></i><span class="font-medium">${name}</span></div>
+                    <span class="mono-font text-[10px] text-gray-400">${when}</span>
+                </div>`;
+            }).join('');
+        } else {
+            compSection.classList.add('hidden');
+        }
+    };
+
+    function renderReqDriverList(selectedIds = []) {
+        const query = (document.getElementById('req-driver-search')?.value || '').toLowerCase();
+        const container = document.getElementById('req-driver-list');
+        const filtered = allDriversCache.filter(d => {
+            if (query) {
+                const hay = `${d.first_name} ${d.last_name} ${d.driver_id || ''}`.toLowerCase();
+                return hay.includes(query);
+            }
+            return true;
+        });
+        if (filtered.length === 0) { container.innerHTML = '<p class="p-4 text-[12px] text-gray-400 text-center">No drivers found.</p>'; return; }
+        container.innerHTML = filtered.map(d => {
+            const checked = selectedIds.includes(d.id);
+            const name = `${d.first_name} ${d.last_name}`;
+            const statusDot = { active:'bg-emerald-500', probation:'bg-amber-400', inactive:'bg-gray-300', terminated:'bg-red-400' }[d.status] || 'bg-gray-300';
+            return `<label class="flex items-center gap-3 px-4 py-3 hover:bg-gray-50 cursor-pointer transition-colors">
+                <input type="checkbox" value="${d.id}" class="w-4 h-4 rounded border-gray-300 accent-black flex-shrink-0" ${checked ? 'checked' : ''}>
+                <span class="w-2 h-2 rounded-full flex-shrink-0 ${statusDot}"></span>
+                <span class="text-[13px] text-black font-medium flex-1">${name}</span>
+                ${d.driver_id ? `<span class="mono-font text-[10px] text-gray-400">#${d.driver_id}</span>` : ''}
+            </label>`;
+        }).join('');
+    }
+
+    window.filterReqDrivers = function() {
+        const selected = [...document.querySelectorAll('#req-driver-list input:checked')].map(cb => cb.value);
+        renderReqDriverList(selected);
+    };
+
+    window.updateReqScope = function() {
+        const scope = document.querySelector('input[name="req-scope"]:checked')?.value;
+        document.getElementById('req-driver-picker').classList.toggle('hidden', scope !== 'specific');
+    };
+
+    window.closeReqModal = function() {
+        document.getElementById('req-modal').classList.add('hidden');
+        reqModalDocId = null;
+    };
+
+    window.saveRequirements = async function() {
+        if (!reqModalDocId) return;
+        const scope = document.querySelector('input[name="req-scope"]:checked')?.value || 'none';
+
+        // Delete all existing requirements for this document
+        await supabase.from('document_requirements').delete().eq('document_id', reqModalDocId);
+
+        if (scope === 'all') {
+            await supabase.from('document_requirements').insert({
+                document_id: reqModalDocId,
+                driver_id: null,
+                assigned_by: window.state.currentUser.id,
+            });
+        } else if (scope === 'specific') {
+            const selected = [...document.querySelectorAll('#req-driver-list input:checked')].map(cb => cb.value);
+            if (selected.length > 0) {
+                await supabase.from('document_requirements').insert(
+                    selected.map(did => ({ document_id: reqModalDocId, driver_id: did, assigned_by: window.state.currentUser.id }))
+                );
+            }
+        }
+        // scope === 'none' → already deleted above, nothing to insert
+
+        closeReqModal();
+        allDocsCache = [];
+        renderDocuments();
+    };
+
+    // ==================== UI TOGGLES ====================
+    window.updateFormUI = function() {
+        const isDriver = document.querySelector('input[name="user-type"]:checked').value === 'driver';
+        const isLogin = window.state.isLoginMode;
+        const nameField = document.getElementById('name-field');
+        const emailLabel = document.getElementById('email-label');
+        const emailInput = document.getElementById('auth-email');
+        const passwordLabel = document.getElementById('password-label');
+        const passwordInput = document.getElementById('auth-password');
+        
+        if (isDriver) {
+            nameField.classList.add('hidden');
+            document.getElementById('auth-name').removeAttribute('required');
+            emailLabel.textContent = "Driver ID";
+            emailInput.type = "text";
+            emailInput.placeholder = "e.g. 501";
+            passwordLabel.textContent = "Driver PIN";
+            passwordInput.placeholder = "••••";
+            if (!isLogin) { emailInput.oninput = (e) => { passwordInput.value = e.target.value; }; } 
+            else { emailInput.oninput = null; }
+        } else {
+            if (isLogin) { nameField.classList.add('hidden'); document.getElementById('auth-name').removeAttribute('required'); }
+            else { nameField.classList.remove('hidden'); document.getElementById('auth-name').setAttribute('required', 'true'); }
+            emailLabel.textContent = "Email Address";
+            emailInput.type = "email";
+            emailInput.placeholder = "name@oregontaxi.com";
+            emailInput.oninput = null;
+            passwordLabel.textContent = "Password";
+            passwordInput.placeholder = "••••••••";
+        }
+    };
+
+    window.toggleAuthMode = function() {
+        window.state.isLoginMode = !window.state.isLoginMode;
+        document.getElementById('auth-title').textContent = window.state.isLoginMode ? 'Welcome back.' : 'Create account.';
+        document.getElementById('auth-subtitle').textContent = window.state.isLoginMode ? 'Sign in to access your tools and schedule.' : 'Register to access the employee hub.';
+        document.getElementById('auth-submit-text').textContent = window.state.isLoginMode ? 'Sign In' : 'Register';
+        document.getElementById('auth-toggle-btn').textContent = window.state.isLoginMode ? 'Need an account? Register here.' : 'Already have one? Sign in.';
+        document.getElementById('auth-message').classList.add('hidden');
+        updateFormUI();
+    };
+
+    updateFormUI();
+
+    function showQuickLaunch(isDriver, role) {
+        if (isDriver) return;
+        const section = document.getElementById('quick-launch-section');
+        section.classList.remove('hidden');
+        document.querySelectorAll('.quick-launch-item').forEach(item => {
+            const toolId = item.dataset.tool;
+            const hasAccess = toolId ? window.hasToolAccess(toolId) : true;
+            item.classList.toggle('hidden', !hasAccess);
+        });
+    }
+
+    function showMessage(text, type) {
+        const msgDiv = document.getElementById('auth-message');
+        msgDiv.textContent = text;
+        msgDiv.className = `p-3 text-[11px] font-semibold rounded border text-center mt-4 block ${type === 'error' ? 'bg-red-50 text-red-600 border-red-200' : 'bg-emerald-50 text-emerald-700 border-emerald-200'}`;
+    }
+
+    // ==================== AUTH ACTIONS ====================
+    document.getElementById('auth-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const userType = document.querySelector('input[name="user-type"]:checked').value;
+        const isDriverSelected = userType === 'driver';
+        let name = document.getElementById('auth-name').value.trim();
+        let emailOrId = document.getElementById('auth-email').value.trim().toLowerCase();
+        let password = document.getElementById('auth-password').value;
+        let email = emailOrId;
+        if (isDriverSelected) { email = `driver${emailOrId}@lanetransportation.com`; if (!name) name = `Driver ${emailOrId}`; }
+        
+        const submitBtn = document.getElementById('auth-submit-text');
+        const btnContainer = document.getElementById('auth-submit-btn');
+        document.getElementById('auth-message').classList.add('hidden');
+        submitBtn.textContent = 'Processing...';
+        btnContainer.classList.add('opacity-75','cursor-not-allowed');
+        btnContainer.disabled = true;
+
+        try {
+            if (window.state.isLoginMode) {
+                const { data: authData, error: authError } = await supabase.auth.signInWithPassword({ email, password });
+                if (authError) throw authError;
+                const { data: profile } = await supabase.from('profiles').select('full_name, role, tool_access').eq('id', authData.user.id).maybeSingle();
+                window.state.currentUser = { id: authData.user.id, email: authData.user.email, name: profile?.full_name || email.split('@')[0], role: profile?.role || 'employee', toolAccess: profile?.tool_access || {} };
+                loginSuccess();
+            } else {
+                const role = isDriverSelected ? 'driver' : 'employee';
+                const payload = { email, password, name, role };
+                const res = await fetch(`${CLOUDFLARE_WORKER_URL}/api/register`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+                const result = await res.json();
+                if (!res.ok) throw new Error(result.error || 'Registration failed');
+                showMessage('Account created successfully! You may now sign in.','success');
+                document.getElementById('auth-password').value = '';
+                setTimeout(() => { window.toggleAuthMode(); showMessage('Account created successfully! You may now sign in.','success'); }, 1500);
+            }
+        } catch (err) { 
+            let errorMsg = err.message;
+            if (isDriverSelected && errorMsg.toLowerCase().includes('email')) errorMsg = "Invalid Driver ID or PIN.";
+            showMessage(errorMsg, 'error'); 
+        } finally { 
+            submitBtn.textContent = window.state.isLoginMode ? 'Sign In' : 'Register'; 
+            btnContainer.classList.remove('opacity-75','cursor-not-allowed'); 
+            btnContainer.disabled = false; 
+        }
+    });
+
+    async function checkSession() {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session) {
+            const { data: profile } = await supabase.from('profiles').select('full_name, role, tool_access').eq('id', session.user.id).maybeSingle();
+            window.state.currentUser = { id: session.user.id, email: session.user.email, name: profile?.full_name || session.user.email.split('@')[0], role: profile?.role || 'employee', toolAccess: profile?.tool_access || {} };
+            loginSuccess();
+        }
+    }
+    checkSession();
+
+    async function loginSuccess() {
+        document.getElementById('auth-layer').style.opacity = '0';
+        setTimeout(() => { document.getElementById('auth-layer').classList.add('hidden'); }, 300);
+
+        const parts = window.state.currentUser.name.split(' ');
+        const formattedName = parts.map(p => p.charAt(0).toUpperCase() + p.slice(1)).join(' ');
+        document.getElementById('logged-user-name').textContent = formattedName;
+
+        const rawRole  = window.state.currentUser.role  || '';
+        const rawEmail = window.state.currentUser.email || '';
+        const isDriver = rawRole.toLowerCase() === 'driver' || rawEmail.startsWith('driver');
+        const isOwner  = rawRole.toLowerCase() === 'owner';
+        const isRestricted = isDriver || isOwner;
+
+        document.getElementById('user-role').textContent = isOwner ? 'OWNER' : (isDriver ? 'DRIVER' : window.state.currentUser.role);
+
+        let initials = formattedName.substring(0,2).toUpperCase();
+        if (parts.length > 1) initials = (parts[0][0] + parts[1][0]).toUpperCase();
+        document.getElementById('user-avatar').textContent = initials;
+
+        const canManage = !isRestricted && ['admin','dispatcher','jay'].includes(window.state.currentUser.role);
+        const isAdmin   = ['admin','jay'].includes(window.state.currentUser.role);
+
+        document.getElementById('add-shift-btn').classList.toggle('hidden', !canManage);
+        document.getElementById('add-shift-btn').classList.toggle('flex', canManage);
+        document.getElementById('nav-schedule').classList.toggle('hidden', isRestricted || !window.hasToolAccess('schedule'));
+        document.getElementById('nav-trips').classList.toggle('hidden', isRestricted || !window.hasToolAccess('trips'));
+        document.getElementById('nav-documents').classList.toggle('hidden', isRestricted || !window.hasToolAccess('documents'));
+        document.getElementById('nav-drivers').classList.toggle('hidden', isRestricted || !window.hasToolAccess('drivers'));
+        document.getElementById('settings-nav-section').classList.toggle('hidden', !isAdmin);
+
+        const uploadBtn = document.getElementById('doc-upload-btn');
+        if (!isRestricted && window.hasToolAccess('documents')) { uploadBtn.classList.remove('hidden'); uploadBtn.classList.add('flex'); }
+        else { uploadBtn.classList.add('hidden'); uploadBtn.classList.remove('flex'); }
+
+        showQuickLaunch(isDriver, window.state.currentUser.role);
+        renderApps(isDriver);
+        if (!isRestricted) loadShifts();
+
+        // Owner: go straight to owner portal
+        if (isOwner) {
+            showSection('owner-portal');
+            return;
+        }
+
+        // For drivers, check required documents before granting access
+        if (isDriver) {
+            const pending = await fetchPendingRequirements();
+            if (pending.length > 0) {
+                showDocumentGate(pending);
+                return;
+            }
+            showSection('driver-hub');
+            return;
+        }
+        showSection('dashboard');
+    }
+
+    window.logout = async function() {
+        await supabase.auth.signOut();
+        window.state.currentUser = null;
+        allDocsCache = [];
+        settingsUsers = [];
+        document.getElementById('auth-password').value = '';
+        document.getElementById('quick-launch-section').classList.add('hidden');
+        document.getElementById('nav-schedule').classList.remove('hidden');
+        document.getElementById('nav-trips').classList.remove('hidden');
+        document.getElementById('nav-documents').classList.remove('hidden');
+        document.getElementById('nav-drivers').classList.remove('hidden');
+        document.getElementById('settings-nav-section').classList.add('hidden');
+        document.getElementById('doc-upload-btn').classList.add('hidden');
+        showSection('dashboard');
+        const authLayer = document.getElementById('auth-layer');
+        authLayer.classList.remove('hidden');
+        setTimeout(() => { authLayer.style.opacity = '1'; }, 10);
+    };
+
+    // ==================== APPS ====================
+    document.getElementById('app-search').addEventListener('input', (e) => { window.state.searchQuery = e.target.value.toLowerCase(); renderApps(false); });
+
+    function renderApps(isDriverFlag) {
+        if (!window.state.currentUser) return;
+        const container = document.getElementById('apps-container');
+        const noAppsMsg = document.getElementById('no-apps-message');
+        const rawRole = window.state.currentUser.role || '';
+        const rawEmail = window.state.currentUser.email || '';
+        const isDriver = isDriverFlag ?? (rawRole.toLowerCase() === 'driver' || rawEmail.startsWith('driver'));
+        
+        container.innerHTML = '';
+        const appsSource = window.HUB_DATA ? (isDriver ? window.HUB_DATA.driverTools : window.HUB_DATA.applications) : [];
+
+        if (isDriver) {
+            noAppsMsg.classList.add('hidden');
+            document.getElementById('app-header-title').textContent = 'Driver Resources.';
+            document.getElementById('dash-sup').textContent = 'Driver · Resources';
+            
+            const visibleApps = appsSource.filter(app => 
+                app.name.toLowerCase().includes(window.state.searchQuery) || app.desc.toLowerCase().includes(window.state.searchQuery)
+            );
+            document.getElementById('app-count-meta').textContent = `${visibleApps.length} tools`;
+
+            container.innerHTML = visibleApps.map(tool => `
+                <a href="${tool.url || '#'}" ${tool.url?.startsWith('#') ? `onclick="event.preventDefault();showSection('${tool.url.substring(1)}')"` : ''} class="app-card bg-white border-b border-r border-gray-500 p-6 flex flex-col justify-between hover:bg-gray-50 cursor-pointer group block transition-colors min-h-[188px]">
+                    <div>
+                        <div class="flex justify-between items-start mb-4">
+                            <div class="h-9 w-9 rounded border border-gray-200 flex items-center justify-center group-hover:bg-black group-hover:border-black transition-colors duration-200">
+                                <i class="ph-bold ${tool.icon} text-lg text-black group-hover:text-white transition-colors"></i>
+                            </div>
+                            <span class="mono-font text-[10px] tracking-widest text-gray-400">${tool.num || '00'}</span>
+                        </div>
+                        <h3 class="text-[17px] font-semibold text-black tracking-tight">${tool.name}</h3>
+                        <p class="text-[12.5px] text-gray-500 mt-1.5 leading-relaxed">${tool.desc}</p>
+                    </div>
+                    <div class="mt-4 border-t border-gray-100 pt-3 flex items-center justify-between">
+                        <span class="mono-font text-[9px] font-bold text-gray-400 uppercase tracking-widest group-hover:text-black transition-colors">View Resource</span>
+                        <i class="ph-bold ph-arrow-right text-gray-400 group-hover:text-black group-hover:translate-x-1 transition-all"></i>
+                    </div>
+                </a>`).join('');
+            return;
+        } else {
+            document.getElementById('app-header-title').textContent = 'Applications.';
+            document.getElementById('dash-sup').textContent = 'Workspace · Operations cockpit';
+        }
+
+        const visibleApps = appsSource.filter(app => {
+            const toolId = app.id || app.toolId;
+            const hasRoleAccess = (toolId && TOOL_DEFS.some(t => t.id === toolId))
+                ? window.hasToolAccess(toolId)
+                : ((app.roles || app.allowedRoles || []).includes(window.state.currentUser.role) || window.state.currentUser.role === 'admin');
+            const matchesSearch = app.name.toLowerCase().includes(window.state.searchQuery) || (app.desc || app.description).toLowerCase().includes(window.state.searchQuery);
+            return hasRoleAccess && matchesSearch;
+        });
+        
+        document.getElementById('app-count-meta').textContent = `${visibleApps.length} apps`;
+
+        if (visibleApps.length === 0) { noAppsMsg.classList.remove('hidden'); }
+        else {
+            noAppsMsg.classList.add('hidden');
+            visibleApps.forEach(app => {
+                const card = document.createElement('a');
+                card.href = app.url || '#';
+                if (app.url?.startsWith('#')) {
+                    card.onclick = (e) => { e.preventDefault(); showSection(app.url.substring(1)); };
+                }
+                card.className = "app-card bg-white border border-gray-400 p-6 flex flex-col justify-between hover:bg-gray-50 cursor-pointer group block transition-colors min-h-[188px]";
+                card.innerHTML = `
+                    <div>
+                        <div class="flex justify-between items-start mb-4">
+                            <div class="h-9 w-9 rounded border border-gray-200 flex items-center justify-center group-hover:bg-black group-hover:border-black transition-colors duration-200">
+                                <i class="ph-bold ${app.icon} text-lg text-black group-hover:text-white transition-colors"></i>
+                            </div>
+                            <span class="mono-font text-[10px] tracking-widest text-gray-400">${app.num || '00'}</span>
+                        </div>
+                        <h3 class="text-[17px] font-semibold text-black tracking-tight">${app.name}</h3>
+                        <p class="text-[12.5px] text-gray-500 mt-1.5 leading-relaxed">${app.desc || app.description}</p>
+                    </div>
+                    <div class="mt-4 border-t border-gray-100 pt-3 flex items-center justify-between">
+                        <span class="mono-font text-[9px] font-bold text-gray-400 uppercase tracking-widest group-hover:text-black transition-colors">Launch App</span>
+                        <i class="ph-bold ph-arrow-right text-gray-400 group-hover:text-black group-hover:translate-x-1 transition-all"></i>
+                    </div>`;
+                container.appendChild(card);
+            });
+        }
+    }
+
+    // ==================== TRIPS (LIVE SUPABASE) ====================
+    let tripDayOffset = 0;
+    let allTripsCache = [];
+    let tripSiteFilter = '';
+
+    function getTripDate() {
+        const d = new Date();
+        d.setDate(d.getDate() + tripDayOffset);
+        return d.toISOString().split('T')[0];
+    }
+
+    window.shiftTripDay = function(dir) {
+        if (dir === 0) tripDayOffset = 0;
+        else tripDayOffset += dir;
+        loadTrips();
+    };
+
+    window.jumpToTripDate = function() {
+        const val = document.getElementById('trips-date-picker').value;
+        if (!val) return;
+        const target = new Date(val + 'T12:00:00');
+        const today = new Date();
+        today.setHours(12,0,0,0);
+        tripDayOffset = Math.round((target - today) / 86400000);
+        loadTrips();
+    };
+
+    window.filterTrips = function() {
+        tripSiteFilter = document.getElementById('trips-site-filter').value;
+        renderTrips();
+    };
+
+    async function loadTrips() {
+        const dateStr = getTripDate();
+        document.getElementById('trips-date-picker').value = dateStr;
+
+        const sub = document.getElementById('trips-subtitle');
+        if (tripDayOffset === 0) sub.textContent = "Today's assigned trips";
+        else {
+            const d = new Date(dateStr + 'T12:00:00');
+            sub.textContent = d.toLocaleDateString('en-US', { weekday:'short', month:'short', day:'numeric', year:'numeric' });
+        }
+
+        document.getElementById('trips-loading').classList.remove('hidden');
+        document.getElementById('trips-table-container').classList.add('hidden');
+        document.getElementById('no-trips-message').classList.add('hidden');
+
+        try {
+            const { data, error } = await supabase
+                .from('trips')
+                .select('*')
+                .eq('date', dateStr)
+                .order('received_at', { ascending: false });
+
+            if (error) throw error;
+            allTripsCache = data || [];
+
+            // Populate site filter
+            const sites = [...new Set(allTripsCache.map(t => t.site_ref).filter(Boolean))].sort();
+            const sel = document.getElementById('trips-site-filter');
+            const currentVal = sel.value;
+            sel.innerHTML = '<option value="">All Sites</option>' + sites.map(s => `<option value="${s}" ${s === currentVal ? 'selected' : ''}>${s}</option>`).join('');
+
+            renderTrips();
+        } catch (err) {
+            console.error('Error loading trips:', err);
+            document.getElementById('trips-loading').classList.add('hidden');
+            document.getElementById('no-trips-message').classList.remove('hidden');
+        }
+    }
+
+    function renderTrips() {
+        let trips = allTripsCache;
+        if (tripSiteFilter) trips = trips.filter(t => t.site_ref === tripSiteFilter);
+
+        document.getElementById('trips-count-meta').textContent = `${trips.length} trip${trips.length !== 1 ? 's' : ''}`;
+        document.getElementById('trips-loading').classList.add('hidden');
+
+        if (trips.length === 0) {
+            document.getElementById('trips-table-container').classList.add('hidden');
+            document.getElementById('no-trips-message').classList.remove('hidden');
+            return;
+        }
+
+        document.getElementById('trips-table-container').classList.remove('hidden');
+        document.getElementById('no-trips-message').classList.add('hidden');
+
+        const tbody = document.getElementById('trips-tbody');
+        tbody.innerHTML = trips.map(t => {
+            const statusColors = {
+                'booked': 'bg-blue-50 text-blue-700',
+                'auto_created': 'bg-emerald-50 text-emerald-700',
+                'pending_manual': 'bg-amber-50 text-amber-700',
+                'designated': 'bg-green-50 text-green-700',
+                'completed': 'bg-gray-100 text-gray-600',
+                'cancelled': 'bg-red-50 text-red-600',
+            };
+            const statusClass = statusColors[t.status] || 'bg-gray-100 text-gray-600';
+            const receivedTime = t.received_at ? new Date(t.received_at).toLocaleTimeString('en-US', { hour:'numeric', minute:'2-digit' }) : '—';
+
+            return `
+                <tr class="border-b border-gray-100 hover:bg-gray-50 transition-colors cursor-pointer" onclick='openTripDetail(${JSON.stringify(t).replace(/'/g, "&#39;")})'>
+                    <td class="px-4 py-3 mono-font text-[12px] font-medium whitespace-nowrap">${t.time || '—'}</td>
+                    <td class="px-4 py-3 font-medium truncate max-w-[160px]">${t.passenger || '—'}</td>
+                    <td class="px-4 py-3 text-gray-600 truncate max-w-[180px]">${t.pickup || '—'}</td>
+                    <td class="px-4 py-3 text-gray-600 truncate max-w-[180px]">${t.dropoff || '—'}</td>
+                    <td class="px-4 py-3 mono-font text-[12px] font-semibold">${t.vehicle_ref || '—'}</td>
+                    <td class="px-4 py-3 text-gray-700">${t.driver_name || '—'}</td>
+                    <td class="px-4 py-3 mono-font text-[11px] uppercase tracking-wider text-gray-500">${t.site_ref || '—'}</td>
+                    <td class="px-4 py-3"><span class="mono-font text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded ${statusClass}">${(t.status || 'unknown').replace(/_/g,' ')}</span></td>
+                    <td class="px-4 py-3 mono-font text-[11px] text-gray-400">${receivedTime}</td>
+                </tr>`;
+        }).join('');
+    }
+
+    window.openTripDetail = function(trip) {
+        document.getElementById('trip-modal-title').textContent = trip.passenger || trip.id;
+        const fields = [
+            ['Trip ID', trip.id],
+            ['Date', trip.date],
+            ['Time', trip.time],
+            ['Passenger', trip.passenger],
+            ['Phone', trip.passenger_phone],
+            ['Pickup', trip.pickup],
+            ['Dropoff', trip.dropoff],
+            ['Vehicle', trip.vehicle_ref],
+            ['Driver', trip.driver_name],
+            ['Driver Phone', trip.driver_phone],
+            ['Site', trip.site_ref],
+            ['Status', trip.status],
+            ['Notes', trip.notes],
+            ['Received', trip.received_at ? new Date(trip.received_at).toLocaleString() : '—'],
+        ];
+        document.getElementById('trip-modal-body').innerHTML = fields.map(([label, val]) => 
+            val ? `<div class="flex items-start gap-3 py-1.5 border-b border-gray-100">
+                <span class="mono-font text-[10px] tracking-widest uppercase text-gray-400 w-28 flex-shrink-0 pt-0.5">${label}</span>
+                <span class="text-black font-medium">${val}</span>
+            </div>` : ''
+        ).join('');
+        document.getElementById('trip-modal').classList.remove('hidden');
+    };
+
+    window.closeTripModal = function() {
+        document.getElementById('trip-modal').classList.add('hidden');
+    };
+
+    // ==================== DISPATCH SCHEDULE ====================
+    const DAYS = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+    const DAYS_FULL = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+    const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+    let weekOffset = 0;
+    let monthOffset = 0;
+    let shifts = [];
+    let monthShifts = [];
+    let editingShiftId = null;
+    let currentView = 'week';
+
+    window.setView = function(v) {
+        currentView = v;
+        const weekBtn = document.getElementById('view-week-btn');
+        const monthBtn = document.getElementById('view-month-btn');
+        const weekNav = document.getElementById('week-nav');
+        const monthNav = document.getElementById('month-nav');
+        const weekView = document.getElementById('week-view');
+        const monthView = document.getElementById('month-view');
+        if (v === 'week') {
+            weekBtn.className = 'px-3 py-1.5 text-[10px] mono-font uppercase tracking-widest font-bold bg-black text-white transition-colors';
+            monthBtn.className = 'px-3 py-1.5 text-[10px] mono-font uppercase tracking-widest font-bold text-gray-500 hover:bg-gray-50 transition-colors';
+            weekNav.classList.remove('hidden'); monthNav.classList.add('hidden');
+            weekView.classList.remove('hidden'); monthView.classList.add('hidden');
+            loadShifts();
+        } else {
+            monthBtn.className = 'px-3 py-1.5 text-[10px] mono-font uppercase tracking-widest font-bold bg-black text-white transition-colors';
+            weekBtn.className = 'px-3 py-1.5 text-[10px] mono-font uppercase tracking-widest font-bold text-gray-500 hover:bg-gray-50 transition-colors';
+            weekNav.classList.add('hidden'); monthNav.classList.remove('hidden');
+            weekView.classList.add('hidden'); monthView.classList.remove('hidden');
+            loadShiftsMonth();
+        }
+    };
+
+    function getWeekDates(offset) {
+        const now = new Date();
+        const day = now.getDay();
+        const monday = new Date(now);
+        monday.setDate(now.getDate() - day + 1 + (offset * 7));
+        const dates = [];
+        for (let i = 0; i < 7; i++) { const d = new Date(monday); d.setDate(monday.getDate() + i); dates.push(d); }
+        return dates;
+    }
+
+    function fmtDate(d) { return d.toISOString().split('T')[0]; }
+    function fmtShort(d) { return d.toLocaleDateString('en-US', { month:'short', day:'numeric' }); }
+    function fmtTime(t) {
+        if (!t) return '';
+        const [h,m] = t.split(':');
+        const hr = parseInt(h);
+        const ampm = hr >= 12 ? 'p' : 'a';
+        const h12 = hr % 12 || 12;
+        return `${h12}:${m}${ampm}`;
+    }
+
+    window.shiftWeek = function(dir) { if (dir === 0) weekOffset = 0; else weekOffset += dir; loadShifts(); };
+    window.shiftMonth = function(dir) { if (dir === 0) monthOffset = 0; else monthOffset += dir; loadShiftsMonth(); };
+
+    async function loadShifts() {
+        const dates = getWeekDates(weekOffset);
+        const startStr = fmtDate(dates[0]);
+        const endStr = fmtDate(dates[6]);
+        const sub = document.getElementById('schedule-subtitle');
+        if (weekOffset === 0) sub.textContent = "This week's shifts";
+        else sub.textContent = `${fmtShort(dates[0])} — ${fmtShort(dates[6])}`;
+        const { data, error } = await supabase.from('dispatch_shifts').select('*').gte('shift_date', startStr).lte('shift_date', endStr).order('start_time');
+        shifts = data || [];
+        renderSchedule(dates);
+    }
+
+    async function loadShiftsMonth() {
+        const now = new Date();
+        const targetMonth = new Date(now.getFullYear(), now.getMonth() + monthOffset, 1);
+        const year = targetMonth.getFullYear();
+        const month = targetMonth.getMonth();
+        const firstDay = new Date(year, month, 1);
+        const lastDay = new Date(year, month + 1, 0);
+        const sub = document.getElementById('schedule-subtitle');
+        sub.textContent = `${MONTHS[month]} ${year}`;
+        const { data } = await supabase.from('dispatch_shifts').select('*').gte('shift_date', fmtDate(firstDay)).lte('shift_date', fmtDate(lastDay)).order('start_time');
+        monthShifts = data || [];
+        renderMonth(year, month, monthShifts);
+    }
+
+    const ROLE_THEMES = { 'OT - Dispatch':'border-blue-400', 'DLX - Dispatch':'border-emerald-400', 'Management':'border-purple-400' };
+    const ROLE_DOTS = { 'OT - Dispatch':'bg-blue-400', 'DLX - Dispatch':'bg-emerald-400', 'Management':'bg-purple-400' };
+
+    function getEmployeeColor(name) {
+        if (!name) return '#f3f4f6';
+        let hash = 0;
+        for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
+        return `hsl(${Math.abs(hash % 360)}, 70%, 92%)`;
+    }
+
+    function renderSchedule(dates) {
+        const grid = document.getElementById('schedule-grid');
+        const noMsg = document.getElementById('no-shifts-message');
+        const today = fmtDate(new Date());
+        const canManage = window.state.currentUser && ['admin','dispatcher','jay'].includes(window.state.currentUser.role);
+
+        if (shifts.length === 0 && weekOffset !== 0) { grid.innerHTML = ''; noMsg.classList.remove('hidden'); return; }
+        noMsg.classList.add('hidden');
+
+        grid.innerHTML = dates.map((d, index) => {
+            const dateStr = fmtDate(d);
+            const isToday = dateStr === today;
+            const dayShifts = shifts.filter(s => s.shift_date === dateStr);
+            const isLast = index === dates.length - 1;
+
+            const shiftsHtml = dayShifts.length > 0
+                ? dayShifts.map(s => {
+                    const roleBorder = ROLE_THEMES[s.role] || 'border-gray-200';
+                    const userColor = getEmployeeColor(s.employee_name);
+                    return `
+                        <div class="p-2.5 rounded border-l-4 ${roleBorder} ${canManage ? 'cursor-pointer hover:brightness-95' : ''} transition-all text-[11px] mb-2 shadow-sm" 
+                             style="background-color: ${userColor}; color: #111;"
+                             ${canManage ? `onclick="openEditShift('${s.id}')"` : ''}>
+                            <div class="flex justify-between items-start">
+                                <span class="font-bold truncate">${s.employee_name}</span>
+                                <span class="text-[9px] font-black opacity-40 uppercase tracking-wider">${s.role.split(' ')[0]}</span>
+                            </div>
+                            <div class="mt-1 font-medium opacity-80 mono-font tracking-tight text-[10px]">${fmtTime(s.start_time)} – ${fmtTime(s.end_time)}</div>
+                            ${s.vehicle ? `<div class="mt-1 opacity-70 truncate mono-font text-[9px] uppercase tracking-wider"><i class="ph-bold ph-car-simple"></i> ${s.vehicle}</div>` : ''}
+                        </div>`;
+                }).join('')
+                : '<p class="text-xs text-gray-300 text-center py-4">—</p>';
+
+            return `
+                <div class="bg-white min-w-[150px] ${!isLast ? 'border-r border-gray-200' : ''}">
+                    <div class="sticky top-0 bg-gray-50 border-b border-gray-200 px-3 py-2.5 flex flex-col items-center justify-center ${isToday ? 'bg-black text-white border-black' : ''}">
+                        <span class="mono-font text-[9px] tracking-widest uppercase ${isToday ? 'text-gray-300' : 'text-gray-400'}">${DAYS[d.getDay()]}</span>
+                        <span class="display-font text-lg font-bold ${isToday ? 'text-white' : 'text-black'} leading-none mt-1">${d.getDate()}</span>
+                    </div>
+                    <div class="p-2 min-h-[200px]">${shiftsHtml}</div>
+                </div>`;
+        }).join('');
+    }
+
+    function renderMonth(year, month, allShifts) {
+        const container = document.getElementById('month-grid-container');
+        const noMsg = document.getElementById('no-shifts-message');
+        const today = fmtDate(new Date());
+        const canManage = window.state.currentUser && ['admin','dispatcher','jay'].includes(window.state.currentUser.role);
+        noMsg.classList.add('hidden');
+
+        const firstDay = new Date(year, month, 1);
+        const lastDay = new Date(year, month + 1, 0);
+        const startDayOfWeek = firstDay.getDay(); 
+        const daysInMonth = lastDay.getDate();
+
+        const shiftsByDate = {};
+        allShifts.forEach(s => { if (!shiftsByDate[s.shift_date]) shiftsByDate[s.shift_date] = []; shiftsByDate[s.shift_date].push(s); });
+
+        let html = '<div class="grid grid-cols-7 gap-px bg-gray-200 border border-gray-200 rounded-lg overflow-hidden">';
+        ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].forEach(d => {
+            html += `<div class="bg-gray-50 px-2 py-2 text-center text-[10px] mono-font font-bold text-gray-400 uppercase tracking-widest">${d}</div>`;
+        });
+        for (let i = 0; i < startDayOfWeek; i++) html += '<div class="bg-white p-2 min-h-[100px]"></div>';
+
+        for (let day = 1; day <= daysInMonth; day++) {
+            const dateStr = `${year}-${String(month + 1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+            const isToday = dateStr === today;
+            const dayShifts = shiftsByDate[dateStr] || [];
+            const shiftCount = dayShifts.length;
+            const visibleShifts = dayShifts.slice(0, 3);
+            const overflow = shiftCount - 3;
+
+            html += `<div class="bg-white p-2 min-h-[120px] ${isToday ? 'bg-gray-50 ring-1 ring-inset ring-black' : ''} hover:bg-gray-50 transition-colors">`;
+            html += `<div class="flex items-center justify-between mb-2">`;
+            html += `<span class="display-font text-[13px] font-semibold ${isToday ? 'bg-black text-white w-6 h-6 rounded-full flex items-center justify-center' : 'text-gray-700'}">${day}</span>`;
+            if (shiftCount > 0) html += `<span class="mono-font text-[8px] font-bold bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded">${shiftCount}</span>`;
+            html += `</div>`;
+
+            visibleShifts.forEach(s => {
+                const roleDot = ROLE_DOTS[s.role] || 'bg-gray-400';
+                html += `<div class="flex items-center gap-1.5 mb-1 ${canManage ? 'cursor-pointer hover:bg-gray-100 rounded px-1 -mx-1 py-0.5' : ''}" ${canManage ? `onclick="openEditShift('${s.id}')"` : ''}>
+                    <div class="w-1.5 h-1.5 rounded-full ${roleDot} flex-shrink-0"></div>
+                    <span class="text-[10.5px] text-gray-700 truncate font-medium">${s.employee_name}</span>
+                </div>`;
+            });
+            if (overflow > 0) html += `<div class="mono-font text-[9px] text-gray-400 font-bold mt-1">+ ${overflow} more</div>`;
+            html += `</div>`;
+        }
+
+        const totalCells = startDayOfWeek + daysInMonth;
+        const remaining = totalCells % 7 === 0 ? 0 : 7 - (totalCells % 7);
+        for (let i = 0; i < remaining; i++) html += '<div class="bg-white p-2 min-h-[100px]"></div>';
+        html += '</div>';
+        container.innerHTML = html;
+    }
+
+    // ==================== SHIFT MODAL ====================
+    window.openShiftModal = function(shift) {
+        editingShiftId = shift?.id || null;
+        document.getElementById('shift-modal-title').textContent = editingShiftId ? shift.employee_name : 'Schedule a shift';
+        document.getElementById('shift-modal-sub').textContent = editingShiftId ? 'Edit Shift' : 'New Shift';
+        document.getElementById('shift-delete-btn').classList.toggle('hidden', !editingShiftId);
+        document.getElementById('s-name').value = shift?.employee_name || '';
+        document.getElementById('s-role').value = shift?.role || 'OT - Dispatch';
+        document.getElementById('s-date').value = shift?.shift_date || fmtDate(new Date());
+        document.getElementById('s-start').value = shift?.start_time?.substring(0,5) || '08:00';
+        document.getElementById('s-end').value = shift?.end_time?.substring(0,5) || '17:00';
+        document.getElementById('s-vehicle').value = shift?.vehicle || '';
+        document.getElementById('s-zone').value = shift?.zone || '';
+        document.getElementById('s-notes').value = shift?.notes || '';
+        document.getElementById('shift-modal').classList.remove('hidden');
+    };
+
+    window.closeShiftModal = function() { document.getElementById('shift-modal').classList.add('hidden'); editingShiftId = null; };
+
+    window.openEditShift = function(id) {
+        const allShifts = currentView === 'week' ? shifts : monthShifts;
+        const s = allShifts.find(x => x.id === id);
+        if (s) openShiftModal(s);
+    };
+
+    window.saveShift = async function() {
+        const payload = {
+            employee_name: document.getElementById('s-name').value.trim(),
+            role: document.getElementById('s-role').value,
+            shift_date: document.getElementById('s-date').value,
+            start_time: document.getElementById('s-start').value,
+            end_time: document.getElementById('s-end').value,
+            vehicle: document.getElementById('s-vehicle').value.trim(),
+            zone: document.getElementById('s-zone').value.trim(),
+            notes: document.getElementById('s-notes').value.trim(),
+        };
+        if (!payload.employee_name || !payload.shift_date || !payload.start_time || !payload.end_time) { alert('Please fill in name, date, and times.'); return; }
+        if (editingShiftId) await supabase.from('dispatch_shifts').update(payload).eq('id', editingShiftId);
+        else { payload.created_by = window.state.currentUser.id; await supabase.from('dispatch_shifts').insert(payload); }
+        closeShiftModal();
+        if (currentView === 'week') await loadShifts();
+        else await loadShiftsMonth();
+    };
+
+    window.deleteShift = async function() {
+        if (!editingShiftId || !confirm('Delete this shift?')) return;
+        await supabase.from('dispatch_shifts').delete().eq('id', editingShiftId);
+        closeShiftModal();
+        if (currentView === 'week') await loadShifts();
+        else await loadShiftsMonth();
+    };
+
+    // ==================== SETTINGS ====================
+    // ==================== TOOL ACCESS (per-user overrides) ====================
+    // Canonical catalog of gated tools/sections. `defaultRoles` = who gets access
+    // out of the box based on role. Admins can override per-user via Settings,
+    // stored in profiles.tool_access as { [toolId]: true|false }.
+    const TOOL_DEFS = [
+        { id:'trips',     label:'Trips',                    icon:'ph-path',               group:'Workspace', defaultRoles:['admin','jay','dispatcher','management','finance','maintenance','employee'] },
+        { id:'schedule',  label:'Schedule',                 icon:'ph-calendar',           group:'Workspace', defaultRoles:['admin','jay','dispatcher','management','finance','maintenance','employee'] },
+        { id:'documents', label:'Documents',                icon:'ph-folder-open',        group:'Workspace', defaultRoles:['admin','dispatcher','jay','finance','management','maintenance','employee'] },
+        { id:'sms',       label:'SMS Tool',                 icon:'ph-chat-circle-text',   group:'Tools', url:'/sms.html',              defaultRoles:['admin','dispatcher','jay'] },
+        { id:'balances',  label:'Account Balances',         icon:'ph-wallet',             group:'Tools', url:'/balances.html',         defaultRoles:['admin','jay','dispatcher','finance'] },
+        { id:'finance',   label:'Financial Dash',           icon:'ph-chart-line-up',      group:'Tools', url:'/financialdashboard',    defaultRoles:['admin','finance','management','jay'] },
+        { id:'repair',    label:'Repair Tracker',           icon:'ph-wrench',             group:'Tools', url:'/repair-tracker.html',   defaultRoles:['admin','jay','maintenance','dispatcher'] },
+        { id:'zones',     label:'Zone Map',                 icon:'ph-map-trifold',        group:'Tools', url:'/zone-map.html',         defaultRoles:['admin','jay','dispatcher','driver','management'] },
+        { id:'drivers',   label:'Driver Directory',         icon:'ph-steering-wheel',     group:'Tools', url:'/drivers.html',          defaultRoles:['admin','dispatcher','jay','management'] },
+        { id:'brokers',   label:'Trip Reconciler',          icon:'ph-handshake',          group:'Tools', url:'/trip-reconciler.html',  defaultRoles:['admin','dispatcher','jay','finance','management'] },
+        { id:'incidents', label:'Feedback / Incident Log',  icon:'ph-warning-octagon',    group:'Tools', url:'#',                      defaultRoles:['admin','dispatcher','jay','management'] },
+      { id: 'lytx-map',     label: 'Lytx Map and Data',                icon: 'ph-globe',  group:'Tools',       url: '/lot-map.html',                      defaultRoles: ['admin','dispatcher','jay','finance','management'] },
+   { id: 'tech-projects',    label: 'Tech Projects',    icon: 'ph-globe',     group:'Tools',   url: '/lot-map.html',                       defaultRoles: ['admin','dispatcher','jay','finance','management'] },
+    ];
+
+    // Returns true/false for whether the current user can access a given tool id,
+    // honoring per-user overrides first, then falling back to role defaults.
+    // Admins always have full access (consistent with the rest of the app's role checks).
+    window.hasToolAccess = function(toolId) {
+        const user = window.state.currentUser;
+        if (!user) return false;
+        if (user.role === 'admin') return true;
+        const overrides = user.toolAccess || {};
+        if (Object.prototype.hasOwnProperty.call(overrides, toolId)) return !!overrides[toolId];
+        const def = TOOL_DEFS.find(t => t.id === toolId);
+        if (!def) return true; // unknown tool id — don't break unconfigured apps
+        return def.defaultRoles.includes(user.role);
+    };
+
+    const ROLE_DEFS = [
+        { id:'admin',       label:'Admin',        icon:'ph-shield-star',    color:'bg-red-50 text-red-700',       desc:'Full system access. Can manage users, roles, all tools and documents.' },
+        { id:'jay',         label:'Jay',          icon:'ph-star',           color:'bg-amber-50 text-amber-700',   desc:'Elevated access equivalent to admin for day-to-day operations.' },
+        { id:'dispatcher',  label:'Dispatcher',   icon:'ph-headset',        color:'bg-blue-50 text-blue-700',     desc:'SMS, trips, schedule, balances, repair tracker, documents.' },
+        { id:'management',  label:'Management',   icon:'ph-briefcase',      color:'bg-purple-50 text-purple-700', desc:'Financial dash, zone map, directory, documents, incidents.' },
+        { id:'finance',     label:'Finance',      icon:'ph-receipt',        color:'bg-emerald-50 text-emerald-700',desc:'Balances, financial dashboard, documents, broker ledger.' },
+        { id:'maintenance', label:'Maintenance',  icon:'ph-wrench',         color:'bg-orange-50 text-orange-700', desc:'Repair tracker and documents.' },
+        { id:'driver',      label:'Driver',       icon:'ph-steering-wheel', color:'bg-gray-100 text-gray-700',    desc:'Driver-only resources: documents, zone map, radio, card processing.' },
+        { id:'owner',      label:'Owner',       icon:'ph-steering-wheel', color:'bg-gray-100 text-gray-700',    desc:'Owner/Operator and sub-fleet management' },
+        { id:'employee',    label:'Employee',     icon:'ph-user',           color:'bg-gray-50 text-gray-600',     desc:'Basic hub access. Role to be updated by admin.' },
+    ];
+
+    let settingsUsers = [];
+    let editingUserId = null;
+    let activeSettingsTab = 'users';
+
+    window.switchSettingsTab = function(tab) {
+        activeSettingsTab = tab;
+        ['users','roles','access'].forEach(t => {
+            document.getElementById('settings-tab-' + t).classList.toggle('hidden', t !== tab);
+            const btn = document.getElementById('stab-' + t);
+            if (t === tab) {
+                btn.classList.replace('border-transparent','border-black');
+                btn.classList.replace('text-gray-400','text-black');
+            } else {
+                btn.classList.replace('border-black','border-transparent');
+                btn.classList.replace('text-black','text-gray-400');
+            }
+        });
+    };
+
+    async function loadSettings() {
+        renderRolesGrid();
+        const { data, error } = await supabase.from('profiles').select('*').order('full_name');
+        if (error) { console.error('Settings load error:', error); return; }
+        settingsUsers = data || [];
+        renderUsersTable();
+        renderAccessTab();
+    }
+
+    function renderUsersTable() {
+        const loading = document.getElementById('settings-users-loading');
+        const table = document.getElementById('settings-users-table');
+        const body = document.getElementById('settings-users-body');
+        loading.classList.add('hidden');
+        table.classList.remove('hidden');
+
+        if (settingsUsers.length === 0) {
+            body.innerHTML = '<div class="p-12 text-center text-gray-500 text-[13px]">No users found.</div>';
+            return;
+        }
+
+        body.innerHTML = settingsUsers.map(u => {
+            const initials = (u.full_name || u.email || '?').substring(0,2).toUpperCase();
+            const parts = (u.full_name || '').split(' ');
+            if (parts.length > 1) { const i = (parts[0][0] || '') + (parts[1][0] || ''); if (i.trim()) initials.replace(initials, i.toUpperCase()); }
+            const roleDef = ROLE_DEFS.find(r => r.id === u.role) || { color:'bg-gray-100 text-gray-600', label: u.role };
+            const approved = u.approved !== false;
+            return `
+                <div class="grid gap-3 items-center px-5 py-4 border-b border-gray-100 hover:bg-gray-50 transition-colors" style="grid-template-columns:1fr 160px 120px 100px 80px">
+                    <div class="flex items-center gap-3 min-w-0">
+                        <div class="w-8 h-8 flex-shrink-0 rounded-md bg-black flex items-center justify-center text-white font-semibold text-[11px]">${(u.full_name || u.email || '?').substring(0,2).toUpperCase()}</div>
+                        <div class="min-w-0">
+                            <div class="font-semibold text-[13px] text-black truncate">${u.full_name || '—'}</div>
+                            <div class="mono-font text-[10px] text-gray-400 truncate">${u.id}</div>
+                        </div>
+                    </div>
+                    <div class="mono-font text-[11px] text-gray-600 truncate">${u.email || '—'}</div>
+                    <div>
+                        <select onchange="updateUserRole('${u.id}', this.value)" class="w-full border border-gray-200 rounded-md px-2 py-1 text-[12px] focus:border-black focus:ring-0 bg-white">
+                            ${ROLE_DEFS.map(r => `<option value="${r.id}" ${u.role === r.id ? 'selected' : ''}>${r.label}</option>`).join('')}
+                        </select>
+                        ${u.tool_access && Object.keys(u.tool_access).length > 0 ? `<div class="mono-font text-[9px] text-gray-400 uppercase tracking-wider mt-1">Custom access</div>` : ''}
+                    </div>
+                    <div>
+                        <button onclick="toggleUserAccess('${u.id}', ${approved})" class="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold mono-font uppercase tracking-wider transition-colors ${approved ? 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100' : 'bg-red-50 text-red-600 hover:bg-red-100'}">
+                            <span class="w-1.5 h-1.5 rounded-full ${approved ? 'bg-emerald-500' : 'bg-red-500'}"></span>
+                            ${approved ? 'Active' : 'Blocked'}
+                        </button>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button onclick="openEditUserModal('${u.id}')" class="text-gray-400 hover:text-black transition-colors" title="Edit"><i class="ph-bold ph-pencil text-sm"></i></button>
+                    </div>
+                </div>`;
+        }).join('');
+    }
+
+    function renderAccessTab() {
+        const list = document.getElementById('access-pending-list');
+        const empty = document.getElementById('access-empty');
+        const pending = settingsUsers.filter(u => u.approved === false);
+        if (pending.length === 0) {
+            list.innerHTML = '';
+            empty.classList.remove('hidden');
+            return;
+        }
+        empty.classList.add('hidden');
+        list.innerHTML = pending.map(u => `
+            <div class="bg-white border border-gray-200 rounded-lg px-5 py-4 flex items-center gap-4">
+                <div class="w-10 h-10 flex-shrink-0 rounded-md bg-gray-100 flex items-center justify-center text-black font-semibold text-[13px]">${(u.full_name || u.email || '?').substring(0,2).toUpperCase()}</div>
+                <div class="flex-1 min-w-0">
+                    <div class="font-semibold text-[13px] text-black">${u.full_name || '—'}</div>
+                    <div class="mono-font text-[11px] text-gray-400">${u.email || '—'} · Registered ${new Date(u.created_at).toLocaleDateString()}</div>
+                </div>
+                <div class="flex items-center gap-2">
+                    <select id="access-role-${u.id}" class="border border-gray-200 rounded-md px-2 py-1 text-[12px] focus:border-black focus:ring-0 bg-white">
+                        ${ROLE_DEFS.map(r => `<option value="${r.id}" ${u.role === r.id ? 'selected':''}>${r.label}</option>`).join('')}
+                    </select>
+                    <button onclick="approveUser('${u.id}')" class="bg-black hover:bg-[#222] text-white text-[12px] font-semibold px-3 py-1.5 rounded-md transition-colors">Approve</button>
+                    <button onclick="denyUser('${u.id}')" class="bg-white border border-gray-200 hover:bg-red-50 hover:border-red-200 hover:text-red-600 text-[12px] font-semibold px-3 py-1.5 rounded-md transition-colors">Deny</button>
+                </div>
+            </div>`).join('');
+    }
+
+    function renderRolesGrid() {
+        document.getElementById('roles-grid').innerHTML = ROLE_DEFS.map(r => `
+            <div class="bg-white border border-gray-200 rounded-lg p-5">
+                <div class="flex items-center gap-3 mb-3">
+                    <div class="w-9 h-9 rounded-md ${r.color.split(' ')[0]} flex items-center justify-center">
+                        <i class="ph-bold ${r.icon} text-lg ${r.color.split(' ')[1]}"></i>
+                    </div>
+                    <div>
+                        <div class="font-semibold text-[14px] text-black">${r.label}</div>
+                        <div class="mono-font text-[9px] text-gray-400 uppercase tracking-wider">${r.id}</div>
+                    </div>
+                </div>
+                <p class="text-[12.5px] text-gray-500 leading-relaxed">${r.desc}</p>
+                <div class="mt-3 pt-3 border-t border-gray-100">
+                    <span class="mono-font text-[10px] text-gray-400 uppercase tracking-wider">${settingsUsers.filter(u => u.role === r.id).length} user${settingsUsers.filter(u => u.role === r.id).length !== 1 ? 's' : ''}</span>
+                </div>
+            </div>`).join('');
+    }
+
+    window.updateUserRole = async function(userId, newRole) {
+        await supabase.from('profiles').update({ role: newRole, updated_at: new Date().toISOString() }).eq('id', userId);
+        const u = settingsUsers.find(x => x.id === userId);
+        if (u) u.role = newRole;
+    };
+
+    window.toggleUserAccess = async function(userId, currentlyApproved) {
+        const newApproved = !currentlyApproved;
+        await supabase.from('profiles').update({ approved: newApproved, updated_at: new Date().toISOString() }).eq('id', userId);
+        const u = settingsUsers.find(x => x.id === userId);
+        if (u) u.approved = newApproved;
+        renderUsersTable();
+        renderAccessTab();
+    };
+
+    window.approveUser = async function(userId) {
+        const role = document.getElementById('access-role-' + userId)?.value || 'employee';
+        await supabase.from('profiles').update({ approved: true, role, updated_at: new Date().toISOString() }).eq('id', userId);
+        const u = settingsUsers.find(x => x.id === userId);
+        if (u) { u.approved = true; u.role = role; }
+        renderUsersTable();
+        renderAccessTab();
+    };
+
+    window.denyUser = async function(userId) {
+        if (!confirm('Remove this user\'s access? They will remain in the system but cannot log in.')) return;
+        await supabase.from('profiles').update({ approved: false, updated_at: new Date().toISOString() }).eq('id', userId);
+        const u = settingsUsers.find(x => x.id === userId);
+        if (u) u.approved = false;
+        renderUsersTable();
+        renderAccessTab();
+    };
+
+    function renderToolAccessRows(overrides) {
+        overrides = overrides || {};
+        const groups = [...new Set(TOOL_DEFS.map(t => t.group))];
+        document.getElementById('um-tool-access-rows').innerHTML = groups.map(group => `
+            <div class="px-3 py-2 bg-gray-50/60 mono-font text-[9px] font-bold text-gray-400 uppercase tracking-widest">${group}</div>
+            ${TOOL_DEFS.filter(t => t.group === group).map(t => {
+                const current = Object.prototype.hasOwnProperty.call(overrides, t.id) ? (overrides[t.id] ? 'allow' : 'block') : 'default';
+                const seg = (val, label) => `
+                    <button type="button" data-tool-id="${t.id}" data-val="${val}" onclick="setToolAccessChoice('${t.id}','${val}')"
+                        class="tool-access-seg px-2.5 py-1 text-[10px] font-semibold mono-font uppercase tracking-wider rounded-md transition-colors ${current === val ? (val==='block' ? 'bg-red-50 text-red-600 border border-red-200' : val==='allow' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-gray-200 text-gray-700 border border-gray-200') : 'bg-white text-gray-400 border border-gray-200 hover:bg-gray-50'}">
+                        ${label}
+                    </button>`;
+                return `
+                <div class="flex items-center justify-between gap-3 px-3 py-2.5">
+                    <div class="flex items-center gap-2 min-w-0">
+                        <i class="ph-bold ${t.icon} text-[15px] text-gray-400 flex-shrink-0"></i>
+                        <span class="text-[12.5px] text-black truncate">${t.label}</span>
+                    </div>
+                    <div class="flex items-center gap-1.5 flex-shrink-0" id="ta-group-${t.id}" data-selected="${current}">
+                        ${seg('default','Default')}
+                        ${seg('allow','Allow')}
+                        ${seg('block','Block')}
+                    </div>
+                </div>`;
+            }).join('')}
+        `).join('');
+    }
+
+    window.setToolAccessChoice = function(toolId, val) {
+        const group = document.getElementById('ta-group-' + toolId);
+        group.dataset.selected = val;
+        group.querySelectorAll('.tool-access-seg').forEach(btn => {
+            const isActive = btn.dataset.val === val;
+            const v = btn.dataset.val;
+            btn.className = `tool-access-seg px-2.5 py-1 text-[10px] font-semibold mono-font uppercase tracking-wider rounded-md transition-colors ${isActive ? (v==='block' ? 'bg-red-50 text-red-600 border border-red-200' : v==='allow' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-gray-200 text-gray-700 border border-gray-200') : 'bg-white text-gray-400 border border-gray-200 hover:bg-gray-50'}`;
+        });
+    };
+
+    function collectToolAccessOverrides() {
+        const overrides = {};
+        TOOL_DEFS.forEach(t => {
+            const group = document.getElementById('ta-group-' + t.id);
+            if (!group) return;
+            const val = group.dataset.selected || 'default';
+            if (val === 'allow') overrides[t.id] = true;
+            else if (val === 'block') overrides[t.id] = false;
+            // 'default' -> omit key entirely so role defaults apply
+        });
+        return overrides;
+    }
+
+    // ==================== USER MODAL (Settings) ====================
+    window.openNewUserModal = function() {
+        editingUserId = null;
+        document.getElementById('user-modal-sub').textContent = 'New User';
+        document.getElementById('user-modal-title').textContent = 'Add staff account';
+        document.getElementById('um-delete-btn').classList.add('hidden');
+        document.getElementById('user-modal-new-fields').classList.remove('hidden');
+        document.getElementById('user-modal-tool-access').classList.add('hidden');
+        document.getElementById('um-name').value = '';
+        document.getElementById('um-email').value = '';
+        document.getElementById('um-password').value = '';
+        document.getElementById('um-role').value = 'dispatcher';
+        document.getElementById('um-approved').checked = true;
+        document.getElementById('user-modal').classList.remove('hidden');
+    };
+
+    window.openEditUserModal = function(userId) {
+        const u = settingsUsers.find(x => x.id === userId);
+        if (!u) return;
+        editingUserId = userId;
+        document.getElementById('user-modal-sub').textContent = 'Edit User';
+        document.getElementById('user-modal-title').textContent = u.full_name || u.email || 'User';
+        document.getElementById('um-delete-btn').classList.remove('hidden');
+        document.getElementById('user-modal-new-fields').classList.add('hidden');
+        document.getElementById('user-modal-tool-access').classList.remove('hidden');
+        document.getElementById('um-role').value = u.role || 'employee';
+        document.getElementById('um-approved').checked = u.approved !== false;
+        renderToolAccessRows(u.tool_access);
+        document.getElementById('user-modal').classList.remove('hidden');
+    };
+
+    window.closeUserModal = function() {
+        document.getElementById('user-modal').classList.add('hidden');
+        editingUserId = null;
+    };
+
+    window.saveUser = async function() {
+        const role = document.getElementById('um-role').value;
+        const approved = document.getElementById('um-approved').checked;
+
+        if (editingUserId) {
+            const tool_access = collectToolAccessOverrides();
+            await supabase.from('profiles').update({ role, approved, tool_access, updated_at: new Date().toISOString() }).eq('id', editingUserId);
+            const u = settingsUsers.find(x => x.id === editingUserId);
+            if (u) { u.role = role; u.approved = approved; u.tool_access = tool_access; }
+        } else {
+            const name = document.getElementById('um-name').value.trim();
+            const email = document.getElementById('um-email').value.trim();
+            const password = document.getElementById('um-password').value;
+            if (!name || !email || !password) { alert('Please fill in all fields.'); return; }
+            const res = await fetch(`${CLOUDFLARE_WORKER_URL}/api/register`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, password, name, role })
+            });
+            const result = await res.json();
+            if (!res.ok) { alert('Failed to create user: ' + (result.error || 'Unknown error')); return; }
+            if (!approved) {
+                const { data: newProfile } = await supabase.from('profiles').select('id').eq('email', email).maybeSingle();
+                if (newProfile) await supabase.from('profiles').update({ approved: false }).eq('id', newProfile.id);
+            }
+            settingsUsers = [];
+        }
+
+        closeUserModal();
+        await loadSettings();
+    };
+
+    window.deleteUser = async function() {
+        if (!editingUserId || !confirm('This will remove the user from all hub data. Continue?')) return;
+        await supabase.from('profiles').delete().eq('id', editingUserId);
+        settingsUsers = settingsUsers.filter(x => x.id !== editingUserId);
+        closeUserModal();
+        renderUsersTable();
+        renderAccessTab();
+    };
+
+    // ==================== DRIVER HUB ====================
+    const DIRECT_RESOURCES = [
+        { num:'01', name:'Zone Map',           desc:'Current region and zone boundaries.',                 icon:'ph-map-trifold',    url:'/zone-map.html' },
+        { num:'02', name:'Flight Tracking',    desc:'PDX / EUG live arrivals and departures.',             icon:'ph-airplane',       url:'https://www.flightaware.com/live/airport/KEUG', external:true },
+        { num:'03', name:'Radio Guidelines',   desc:'Standard 10-codes, channels and procedures.',         icon:'ph-broadcast',      url:'/radio-guidelines.html' },
+        { num:'04', name:'Card Processing',    desc:'Step-by-step terminal instructions for fares.',       icon:'ph-credit-card',    url:'/cc.html' },
+        { num:'05', name:'Documents',          desc:'Forms, manuals and required policies for drivers.',   icon:'ph-folder-open',    url:'#documents' },
+        { num:'06', name:'HR Notices',         desc:'Required driver documentation and forms.',            icon:'ph-file-text',      url:'/hr-notices.html' },
+    ];
+
+    let driverHubLoaded = false;
+    let ownerRecordCache = null;
+
+    async function loadDriverHub() {
+        if (driverHubLoaded) return;
+        driverHubLoaded = true;
+
+        // Render direct resources grid
+        const grid = document.getElementById('driver-direct-grid');
+        grid.innerHTML = DIRECT_RESOURCES.map(r => `
+            <a href="${r.url}" ${r.external ? 'target="_blank" rel="noopener"' : (r.url.startsWith('#') ? `onclick="event.preventDefault();showSection('${r.url.substring(1)}')"` : '')}
+               class="app-card bg-white border-b border-r border-gray-200 p-6 flex flex-col justify-between hover:bg-gray-50 cursor-pointer group block transition-colors min-h-[172px]">
+              <div>
+                <div class="flex justify-between items-start mb-4">
+                  <div class="h-9 w-9 rounded border border-gray-200 flex items-center justify-center group-hover:bg-black group-hover:border-black transition-colors">
+                    <i class="ph-bold ${r.icon} text-lg text-black group-hover:text-white transition-colors"></i>
+                  </div>
+                  <span class="mono-font text-[10px] tracking-widest text-gray-400">${r.num}</span>
+                </div>
+                <h3 class="text-[16px] font-semibold text-black tracking-tight">${r.name}</h3>
+                <p class="text-[12px] text-gray-500 mt-1 leading-relaxed">${r.desc}</p>
+              </div>
+              <div class="mt-4 border-t border-gray-100 pt-3 flex items-center justify-between">
+                <span class="mono-font text-[9px] font-bold text-gray-400 uppercase tracking-widest group-hover:text-black transition-colors">${r.external ? 'Open Link' : 'View'}</span>
+                <i class="ph-bold ${r.external ? 'ph-arrow-square-out' : 'ph-arrow-right'} text-gray-400 group-hover:text-black transition-all"></i>
+              </div>
+            </a>`).join('');
+
+        // Load owner info for this driver
+        await loadDriverOwnerCard();
+
+        // Load dispatch contacts
+        loadDriverDispatchContacts();
+
+        // Load HR docs
+        loadDriverHrDocs();
+
+        // Load PPV card
+        loadDriverPpvCard();
+    }
+
+    async function loadDriverOwnerCard() {
+        const ownerDiv = document.getElementById('driver-owner-card');
+        const uid = window.state.currentUser?.id;
+        if (!uid) return;
+
+        // Find driver record → owner_id
+        const { data: driverRow } = await supabase.from('drivers').select('owner_id, ppv_number, ppv_expiry').eq('profile_id', uid).maybeSingle();
+        if (!driverRow || !driverRow.owner_id) {
+            ownerDiv.innerHTML = `<div class="p-12 text-center text-gray-400">
+                <div class="inline-block p-3 bg-gray-50 rounded-lg border border-gray-200 mb-3"><i class="ph-bold ph-car text-2xl"></i></div>
+                <p class="text-sm font-medium text-gray-500">No vehicle owner linked to your account.</p>
+                <p class="text-xs text-gray-400 mt-1">Contact dispatch to be assigned to an owner.</p></div>`;
+            return;
+        }
+
+        const { data: owner } = await supabase.from('vehicle_owners').select('*').eq('id', driverRow.owner_id).maybeSingle();
+        if (!owner) { ownerDiv.innerHTML = `<div class="p-10 text-center text-gray-400 text-sm">Owner record not found.</div>`; return; }
+
+        const insExpiry = owner.insurance_expiry ? new Date(owner.insurance_expiry) : null;
+        const today = new Date();
+        const insDaysLeft = insExpiry ? Math.ceil((insExpiry - today) / 86400000) : null;
+        const insColor = insDaysLeft === null ? 'text-gray-400' : insDaysLeft < 0 ? 'text-red-600 font-semibold' : insDaysLeft < 30 ? 'text-amber-600 font-semibold' : 'text-emerald-600';
+
+        ownerDiv.innerHTML = `
+          <div class="p-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div>
+              <div class="mono-font text-[9px] uppercase tracking-widest text-gray-400 mb-2">Owner</div>
+              <div class="text-[15px] font-semibold text-black">${owner.owner_name || '—'}</div>
+              ${owner.company_name ? `<div class="text-[12px] text-gray-500 mt-0.5">${owner.company_name}</div>` : ''}
+              ${owner.phone ? `<a href="tel:${owner.phone}" class="flex items-center gap-1 text-[12px] text-gray-600 mt-2 hover:text-black"><i class="ph-bold ph-phone text-xs"></i>${owner.phone}</a>` : ''}
+              ${owner.email ? `<div class="text-[12px] text-gray-500 mt-0.5 truncate">${owner.email}</div>` : ''}
+            </div>
+            <div>
+              <div class="mono-font text-[9px] uppercase tracking-widest text-gray-400 mb-2">Emergency Contact</div>
+              ${owner.emergency_contact_name ? `<div class="text-[14px] font-semibold text-black">${owner.emergency_contact_name}</div>
+              <div class="text-[12px] text-gray-500">${owner.emergency_contact_rel || ''}</div>
+              ${owner.emergency_contact_phone ? `<a href="tel:${owner.emergency_contact_phone}" class="flex items-center gap-1 text-[12px] text-gray-600 mt-1.5 hover:text-black"><i class="ph-bold ph-phone text-xs"></i>${owner.emergency_contact_phone}</a>` : ''}` : '<div class="text-[12px] text-gray-400">Not set</div>'}
+            </div>
+            <div>
+              <div class="mono-font text-[9px] uppercase tracking-widest text-gray-400 mb-2">Tow / Roadside</div>
+              ${owner.tow_company_name ? `<div class="text-[14px] font-semibold text-black">${owner.tow_company_name}</div>
+              ${owner.tow_company_phone ? `<a href="tel:${owner.tow_company_phone}" class="flex items-center gap-1 text-[12px] text-gray-600 mt-1.5 hover:text-black"><i class="ph-bold ph-phone text-xs"></i>${owner.tow_company_phone}</a>` : ''}
+              ${owner.aaa_member_number ? `<div class="text-[11px] text-gray-400 mt-1">AAA: ${owner.aaa_member_number}</div>` : ''}` : '<div class="text-[12px] text-gray-400">Not set</div>'}
+            </div>
+            <div>
+              <div class="mono-font text-[9px] uppercase tracking-widest text-gray-400 mb-2">Insurance</div>
+              ${owner.insurance_carrier ? `<div class="text-[14px] font-semibold text-black">${owner.insurance_carrier}</div>
+              ${owner.insurance_policy_number ? `<div class="text-[12px] text-gray-500">Policy: ${owner.insurance_policy_number}</div>` : ''}
+              ${insExpiry ? `<div class="text-[12px] mt-1 ${insColor}">Expires ${insExpiry.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}</div>` : ''}` : '<div class="text-[12px] text-gray-400">Not set</div>'}
+            </div>
+          </div>
+          ${owner.vehicle_notes ? `<div class="px-6 pb-5 border-t border-gray-100 pt-4"><div class="mono-font text-[9px] uppercase tracking-widest text-gray-400 mb-1.5">Vehicle Notes</div><p class="text-[13px] text-gray-600">${owner.vehicle_notes}</p></div>` : ''}`;
+    }
+
+    async function loadDriverDispatchContacts() {
+        const el = document.getElementById('driver-dispatch-list');
+        const { data } = await supabase.from('contacts').select('name,title,phone,email').order('name');
+        if (!data || data.length === 0) {
+            el.innerHTML = `<div class="p-8 text-center text-gray-400 text-sm">No contacts on file.</div>`;
+            return;
+        }
+        el.innerHTML = data.map(c => `
+          <div class="flex items-center justify-between px-4 py-3 hover:bg-gray-50 rounded-md transition-colors">
+            <div>
+              <div class="text-[13px] font-semibold text-black">${c.name}</div>
+              ${c.title ? `<div class="text-[11px] text-gray-400">${c.title}</div>` : ''}
+            </div>
+            ${c.phone ? `<a href="tel:${c.phone}" class="mono-font text-[11px] text-gray-500 hover:text-black transition-colors flex items-center gap-1"><i class="ph-bold ph-phone-call text-xs"></i>${c.phone}</a>` : ''}
+          </div>`).join('');
+    }
+
+    async function loadDriverHrDocs() {
+        const el = document.getElementById('driver-hr-list');
+        const { data } = await supabase.from('hub_documents').select('id,name,file_path,type').eq('folder', 'hr').order('name');
+        if (!data || data.length === 0) {
+            el.innerHTML = `<div class="p-8 text-center text-gray-400 text-sm">No HR documents on file.</div>`;
+            return;
+        }
+        const typeIcon = t => ({ pdf:'ph-file-pdf', docx:'ph-file-doc', xlsx:'ph-file-xls', form:'ph-file-text' }[t] || 'ph-file');
+        el.innerHTML = data.map(d => `
+          <div class="flex items-center gap-3 px-4 py-3 hover:bg-gray-50 rounded-md transition-colors cursor-pointer" onclick="downloadDoc('${d.id}','${d.file_path}')">
+            <i class="ph-bold ${typeIcon(d.type)} text-gray-400 text-base flex-shrink-0"></i>
+            <span class="text-[13px] text-black leading-snug">${d.name}</span>
+            <i class="ph-bold ph-download-simple text-gray-300 hover:text-black ml-auto text-sm"></i>
+          </div>`).join('');
+    }
+
+    async function loadDriverPpvCard() {
+        const el = document.getElementById('driver-ppv-card');
+        const uid = window.state.currentUser?.id;
+        if (!uid) { el.innerHTML = '<div class="text-sm text-gray-400 p-6 text-center">Not available.</div>'; return; }
+
+        const { data } = await supabase.from('drivers').select('ppv_number,ppv_expiry,license_number,license_expiry').eq('profile_id', uid).maybeSingle();
+        if (!data) { el.innerHTML = '<div class="text-sm text-gray-400 p-6 text-center">No driver record found.</div>'; return; }
+
+        const today = new Date();
+        const ppvExpiry = data.ppv_expiry ? new Date(data.ppv_expiry) : null;
+        const licExpiry = data.license_expiry ? new Date(data.license_expiry) : null;
+
+        const expiryBadge = (exp) => {
+            if (!exp) return '<span class="mono-font text-[10px] text-gray-400">No date</span>';
+            const days = Math.ceil((exp - today) / 86400000);
+            if (days < 0) return `<span class="mono-font text-[10px] bg-red-50 text-red-700 px-2 py-0.5 rounded-full border border-red-200">Expired</span>`;
+            if (days < 30) return `<span class="mono-font text-[10px] bg-amber-50 text-amber-700 px-2 py-0.5 rounded-full border border-amber-200">Expires in ${days}d</span>`;
+            return `<span class="mono-font text-[10px] bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-full border border-emerald-200">Valid</span>`;
+        };
+
+        el.innerHTML = `
+          <div class="space-y-4">
+            <div class="bg-gray-50 rounded-lg border border-gray-200 p-4">
+              <div class="mono-font text-[9px] uppercase tracking-widest text-gray-400 mb-2">PPV Permit</div>
+              <div class="text-[18px] font-semibold mono-font text-black">${data.ppv_number || '—'}</div>
+              ${ppvExpiry ? `<div class="flex items-center justify-between mt-2">
+                <span class="text-[12px] text-gray-500">${ppvExpiry.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}</span>
+                ${expiryBadge(ppvExpiry)}</div>` : '<div class="text-[12px] text-gray-400 mt-1">No expiry on file</div>'}
+            </div>
+            <div class="bg-gray-50 rounded-lg border border-gray-200 p-4">
+              <div class="mono-font text-[9px] uppercase tracking-widest text-gray-400 mb-2">Driver License</div>
+              <div class="text-[18px] font-semibold mono-font text-black">${data.license_number || '—'}</div>
+              ${licExpiry ? `<div class="flex items-center justify-between mt-2">
+                <span class="text-[12px] text-gray-500">${licExpiry.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}</span>
+                ${expiryBadge(licExpiry)}</div>` : '<div class="text-[12px] text-gray-400 mt-1">No expiry on file</div>'}
+            </div>
+          </div>`;
+    }
+
+    // ==================== OWNER PORTAL ====================
+    let ownerPortalLoaded = false;
+    let ownerPortalRecord = null;
+
+    async function loadOwnerPortal() {
+        if (ownerPortalLoaded) return;
+        ownerPortalLoaded = true;
+        const uid = window.state.currentUser?.id;
+        if (!uid) return;
+
+        const { data } = await supabase.from('vehicle_owners').select('*').eq('profile_id', uid).maybeSingle();
+        ownerPortalRecord = data;
+
+        const fields = {
+            'owner-name': data?.owner_name || '',
+            'owner-company': data?.company_name || '',
+            'owner-phone': data?.phone || '',
+            'owner-email': data?.email || '',
+            'owner-address': data?.address || '',
+            'owner-ec-name': data?.emergency_contact_name || '',
+            'owner-ec-phone': data?.emergency_contact_phone || '',
+            'owner-ec-rel': data?.emergency_contact_rel || '',
+            'owner-tow-name': data?.tow_company_name || '',
+            'owner-tow-phone': data?.tow_company_phone || '',
+            'owner-aaa': data?.aaa_member_number || '',
+            'owner-ins-carrier': data?.insurance_carrier || '',
+            'owner-ins-policy': data?.insurance_policy_number || '',
+            'owner-ins-expiry': data?.insurance_expiry || '',
+            'owner-notes': data?.vehicle_notes || '',
+        };
+        for (const [id, val] of Object.entries(fields)) {
+            const el = document.getElementById(id);
+            if (el) el.value = val;
+        }
+
+        await loadOwnerDriverList(uid);
+    }
+
+    async function loadOwnerDriverList(ownerProfileId) {
+        const el = document.getElementById('owner-drivers-list');
+        if (!ownerPortalRecord) {
+            el.innerHTML = `<div class="p-8 text-center text-gray-400 text-sm">Save your information first to link drivers.</div>`;
+            return;
+        }
+        const { data } = await supabase.from('drivers').select('driver_id,first_name,last_name,phone,status,vehicle_ref').eq('owner_id', ownerPortalRecord.id).order('last_name');
+        if (!data || data.length === 0) {
+            el.innerHTML = `<div class="p-8 text-center text-gray-400 text-sm">No drivers linked to your account yet.</div>`;
+            return;
+        }
+        const statusColor = s => ({ active:'bg-emerald-50 text-emerald-700 border-emerald-200', inactive:'bg-gray-50 text-gray-500 border-gray-200', suspended:'bg-red-50 text-red-700 border-red-200' }[s] || 'bg-gray-50 text-gray-500 border-gray-200');
+        el.innerHTML = data.map(d => `
+          <div class="px-4 py-3 flex items-center gap-3 hover:bg-gray-50 transition-colors">
+            <div class="w-8 h-8 rounded-full bg-gray-100 border border-gray-200 flex items-center justify-center text-[11px] font-bold text-gray-600 flex-shrink-0">
+              ${(d.first_name?.[0] || '') + (d.last_name?.[0] || '')}
+            </div>
+            <div class="flex-1 min-w-0">
+              <div class="text-[13px] font-semibold text-black">${d.first_name || ''} ${d.last_name || ''}</div>
+              <div class="text-[11px] text-gray-400 mono-font">ID ${d.driver_id}${d.vehicle_ref ? ` · ${d.vehicle_ref}` : ''}</div>
+            </div>
+            <span class="text-[10px] mono-font border px-2 py-0.5 rounded-full ${statusColor(d.status)}">${(d.status || 'unknown').toUpperCase()}</span>
+          </div>`).join('');
+    }
+
+    window.saveOwnerInfo = async function() {
+        const uid = window.state.currentUser?.id;
+        if (!uid) return;
+        const payload = {
+            profile_id: uid,
+            owner_name: document.getElementById('owner-name').value.trim(),
+            company_name: document.getElementById('owner-company').value.trim(),
+            phone: document.getElementById('owner-phone').value.trim(),
+            email: document.getElementById('owner-email').value.trim(),
+            address: document.getElementById('owner-address').value.trim(),
+            emergency_contact_name: document.getElementById('owner-ec-name').value.trim(),
+            emergency_contact_phone: document.getElementById('owner-ec-phone').value.trim(),
+            emergency_contact_rel: document.getElementById('owner-ec-rel').value.trim(),
+            tow_company_name: document.getElementById('owner-tow-name').value.trim(),
+            tow_company_phone: document.getElementById('owner-tow-phone').value.trim(),
+            aaa_member_number: document.getElementById('owner-aaa').value.trim(),
+            insurance_carrier: document.getElementById('owner-ins-carrier').value.trim(),
+            insurance_policy_number: document.getElementById('owner-ins-policy').value.trim(),
+            insurance_expiry: document.getElementById('owner-ins-expiry').value || null,
+            vehicle_notes: document.getElementById('owner-notes').value.trim(),
+            updated_at: new Date().toISOString(),
+        };
+        let error;
+        if (ownerPortalRecord?.id) {
+            ({ error } = await supabase.from('vehicle_owners').update(payload).eq('id', ownerPortalRecord.id));
+        } else {
+            const { data, error: e } = await supabase.from('vehicle_owners').insert(payload).select().single();
+            error = e;
+            if (data) { ownerPortalRecord = data; await loadOwnerDriverList(uid); }
+        }
+        if (error) { alert('Save failed: ' + error.message); return; }
+        const btn = document.querySelector('[onclick="saveOwnerInfo()"]');
+        if (btn) { btn.textContent = '✓ Saved'; setTimeout(() => { btn.innerHTML = '<i class="ph-bold ph-floppy-disk"></i> Save Changes'; }, 2000); }
+    };
+</script>
+</body>
+</html>

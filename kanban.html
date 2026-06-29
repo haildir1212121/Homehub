@@ -1,0 +1,3017 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Kanban PM — Operations Cockpit</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://unpkg.com/@phosphor-icons/web"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Inter+Tight:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+<style>
+/* ── Design Tokens ─────────────────────────────────────────── */
+:root {
+  --font-body:    'Inter', system-ui, sans-serif;
+  --font-display: 'Inter Tight', 'Inter', sans-serif;
+  --font-mono:    'JetBrains Mono', ui-monospace, monospace;
+
+  --ink:        #1a1a1a;
+  --ink-strong: #000000;
+  --fg-muted:   #6b7280;
+  --fg-subtle:  #9ca3af;
+
+  --bg-card:    #ffffff;
+  --bg-canvas:  #faf9f8;
+  --bg-hover:   #f9fafb;
+  --bg-subtle:  #f3f4f6;
+
+  --border:        #e5e7eb;
+  --border-soft:   #f3f4f6;
+
+  --accent:      #D97757;
+  --accent-ink:  #b45f43;
+
+  --ok:     #10b981; --ok-bg:    #ecfdf5; --ok-fg:    #047857;
+  --info:   #2563eb; --info-bg:  #eff6ff; --info-fg:  #1d4ed8;
+  --warn:   #d97706; --warn-bg:  #fffbeb; --warn-fg:  #b45309;
+  --danger: #dc2626; --danger-bg:#fef2f2; --danger-fg:#b91c1c;
+
+  --r-xs:  4px;
+  --r-sm:  6px;
+  --r-md:  8px;
+  --r-lg:  10px;
+  --r-pill:9999px;
+
+  --shadow-card: 0 1px 3px rgba(0,0,0,0.04);
+  --shadow-pop:  0 4px 16px rgba(0,0,0,0.10);
+
+  --t-fast: 0.1s;
+  --t-base: 0.15s;
+}
+
+body.dark {
+  --ink:        #f3f4f6;
+  --ink-strong: #ffffff;
+  --fg-muted:   #9ca3af;
+  --fg-subtle:  #6b7280;
+
+  --bg-card:    #1f2937;
+  --bg-canvas:  #111827;
+  --bg-hover:   #374151;
+  --bg-subtle:  #374151;
+
+  --border:        #4b5563;
+  --border-soft:   #374151;
+  
+  --shadow-card: 0 1px 3px rgba(0,0,0,0.4);
+  --shadow-pop:  0 4px 16px rgba(0,0,0,0.6);
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: var(--font-body);
+  color: var(--ink);
+  background: var(--bg-canvas);
+  -webkit-font-smoothing: antialiased;
+  height: 100vh;
+  overflow: hidden;
+  transition: background-color var(--t-base), color var(--t-base);
+}
+
+.sidebar, .task-card, .modal, .config-card, #detail-panel { 
+  transition: background-color var(--t-base), border-color var(--t-base), box-shadow var(--t-base); 
+}
+
+h1, h2, h3 { font-family: var(--font-display); letter-spacing: -0.02em; }
+
+/* ── Layout ────────────────────────────────────────────────── */
+#app { display: flex; height: 100vh; }
+
+/* ── Sidebar ───────────────────────────────────────────────── */
+#sidebar {
+  width: 230px;
+  min-width: 230px;
+  background: var(--bg-card);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.sidebar-logo {
+  padding: 20px 20px 16px;
+  border-bottom: 1px solid var(--border-soft);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.logo-sq {
+  width: 32px; height: 32px;
+  background: var(--ink-strong);
+  border-radius: var(--r-sm);
+  display: flex; align-items: center; justify-content: center;
+  color: var(--bg-card);
+  font-family: var(--font-display);
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  flex-shrink: 0;
+}
+.logo-name {
+  font-family: var(--font-display);
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--ink-strong);
+}
+.logo-sub {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--fg-subtle);
+}
+
+.sidebar-section-label {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--fg-subtle);
+  padding: 12px 20px 6px;
+}
+
+.sidebar-nav { padding: 8px 12px; display: flex; flex-direction: column; gap: 2px; }
+
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: var(--r-sm);
+  cursor: pointer;
+  transition: background var(--t-fast);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ink);
+  border: none;
+  background: transparent;
+  width: 100%;
+  text-align: left;
+}
+.nav-item i { font-size: 16px; opacity: 0.65; }
+.nav-item:hover { background: var(--bg-subtle); }
+.nav-item:hover i { opacity: 1; }
+.nav-item.active { background: var(--ink-strong); color: var(--bg-card); }
+.nav-item.active i { opacity: 1; }
+.nav-item .nav-badge {
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.05em;
+  color: var(--fg-subtle);
+  background: var(--bg-subtle);
+  padding: 1px 6px;
+  border-radius: var(--r-pill);
+}
+.nav-item.active .nav-badge { background: rgba(255,255,255,0.15); color: rgba(255,255,255,0.7); }
+
+.sidebar-projects { flex: 1; overflow-y: auto; padding: 0 12px 8px; }
+.sidebar-projects::-webkit-scrollbar { width: 4px; }
+.sidebar-projects::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+.proj-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  border-radius: var(--r-sm);
+  cursor: pointer;
+  transition: background var(--t-fast);
+  font-size: 12.5px;
+  color: var(--ink);
+}
+.proj-item:hover { background: var(--bg-subtle); }
+.proj-item.active { background: var(--bg-subtle); font-weight: 500; }
+.proj-item .proj-dot {
+  width: 8px; height: 8px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+.proj-item .proj-count {
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: var(--fg-subtle);
+  letter-spacing: 0.05em;
+}
+
+.sidebar-footer {
+  border-top: 1px solid var(--border-soft);
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.avatar-sq {
+  width: 30px; height: 30px;
+  background: var(--ink-strong);
+  border-radius: var(--r-sm);
+  display: flex; align-items: center; justify-content: center;
+  color: var(--bg-card);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+.footer-name { font-size: 12.5px; font-weight: 500; color: var(--ink-strong); }
+.footer-role { font-family: var(--font-mono); font-size: 9px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--fg-subtle); }
+
+/* ── Main ──────────────────────────────────────────────────── */
+#main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-width: 0;
+}
+
+/* ── Page Header ───────────────────────────────────────────── */
+#page-header {
+  background: var(--bg-card);
+  border-bottom: 1px solid var(--border);
+  padding: 16px 28px 14px;
+  flex-shrink: 0;
+}
+.page-eyebrow {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--fg-muted);
+  margin-bottom: 4px;
+}
+.page-title {
+  font-family: var(--font-display);
+  font-size: 28px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--ink-strong);
+  line-height: 1;
+}
+.header-row {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+}
+.header-actions { display: flex; align-items: center; gap: 8px; }
+
+/* ── Toolbar ───────────────────────────────────────────────── */
+#toolbar {
+  padding: 10px 28px;
+  border-bottom: 1px solid var(--border-soft);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--bg-card);
+  flex-shrink: 0;
+}
+.search-wrap {
+  position: relative;
+  flex: 1;
+  max-width: 320px;
+}
+.search-wrap i {
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--fg-subtle);
+  font-size: 14px;
+  pointer-events: none;
+}
+.search-input {
+  width: 100%;
+  background: var(--bg-canvas);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  padding: 6px 10px 6px 30px;
+  font-size: 12.5px;
+  font-family: var(--font-body);
+  color: var(--ink);
+  outline: none;
+  transition: border-color var(--t-fast);
+}
+.search-input:focus { border-color: var(--ink-strong); }
+.search-input::placeholder { color: var(--fg-subtle); }
+
+/* Stats strip */
+.stats-strip {
+  display: flex;
+  gap: 0;
+  margin-left: auto;
+}
+.stat-chip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  border-left: 1px solid var(--border-soft);
+}
+.stat-chip:first-child { border-left: none; }
+.stat-num {
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--ink-strong);
+}
+.stat-lbl {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--fg-subtle);
+}
+
+/* ── Board ─────────────────────────────────────────────────── */
+#board-wrap {
+  flex: 1;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 20px 28px 0;
+}
+#board-wrap::-webkit-scrollbar { height: 6px; }
+#board-wrap::-webkit-scrollbar-track { background: transparent; }
+#board-wrap::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+#board {
+  display: flex;
+  gap: 12px;
+  height: 100%;
+  align-items: flex-start;
+  min-width: max-content;
+}
+
+/* ── Column ────────────────────────────────────────────────── */
+.column {
+  width: 260px;
+  min-width: 260px;
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100vh - 200px);
+  background: var(--bg-subtle);
+  border-radius: var(--r-md);
+  overflow: hidden;
+}
+
+.col-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 14px 10px;
+  background: var(--bg-subtle);
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--border-soft);
+}
+.col-label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink);
+  flex: 1;
+}
+.col-count {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--fg-subtle);
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--r-pill);
+  padding: 1px 7px;
+}
+.col-add-btn {
+  width: 22px; height: 22px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-xs);
+  background: var(--bg-card);
+  color: var(--fg-subtle);
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  transition: all var(--t-fast);
+  font-size: 13px;
+}
+.col-add-btn:hover { background: var(--ink-strong); color: var(--bg-card); border-color: var(--ink-strong); }
+
+.col-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 10px 10px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.col-body::-webkit-scrollbar { width: 4px; }
+.col-body::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+.col-add-row {
+  padding: 8px 10px;
+  flex-shrink: 0;
+  border-top: 1px solid var(--border-soft);
+}
+.col-add-inline {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--fg-subtle);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 4px;
+  border-radius: var(--r-xs);
+  transition: all var(--t-fast);
+}
+.col-add-inline:hover { color: var(--ink); background: var(--bg-hover); }
+
+/* ── Task Card ─────────────────────────────────────────────── */
+.task-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  padding: 12px 13px;
+  cursor: pointer;
+  transition: all var(--t-base);
+  box-shadow: var(--shadow-card);
+  position: relative;
+}
+.task-card:hover {
+  border-color: var(--fg-subtle);
+  box-shadow: var(--shadow-pop);
+  transform: translateY(-1px);
+}
+.task-card.is-dragging {
+  opacity: 0.4;
+}
+.task-card.drag-over {
+  border-color: var(--ink-strong);
+  border-style: dashed;
+}
+
+.card-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 9px;
+}
+.card-title {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ink-strong);
+  line-height: 1.4;
+  flex: 1;
+}
+.card-prio {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 7px;
+  border-radius: var(--r-pill);
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  flex-shrink: 0;
+}
+.prio-high { background: var(--danger-bg); color: var(--danger-fg); }
+.prio-med  { background: var(--warn-bg);   color: var(--warn-fg);   }
+.prio-low  { background: var(--bg-subtle); color: var(--fg-muted);  }
+
+.card-progress { margin-bottom: 10px; }
+.progress-track {
+  height: 4px;
+  background: var(--bg-subtle);
+  border-radius: var(--r-pill);
+  overflow: hidden;
+}
+.progress-fill {
+  height: 100%;
+  background: var(--ink-strong);
+  border-radius: var(--r-pill);
+  transition: width 0.4s ease;
+}
+.progress-pct {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: var(--fg-subtle);
+  margin-top: 4px;
+  letter-spacing: 0.05em;
+}
+
+.card-foot {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.card-avatar {
+  width: 22px; height: 22px;
+  border-radius: var(--r-xs);
+  background: var(--ink-strong);
+  color: var(--bg-card);
+  font-family: var(--font-mono);
+  font-size: 8px;
+  font-weight: 600;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.card-due {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--fg-subtle);
+}
+.card-due.overdue { color: var(--danger-fg); }
+
+/* ── Drop zone ─────────────────────────────────────────────── */
+.drop-zone {
+  min-height: 40px;
+  border: 2px dashed transparent;
+  border-radius: var(--r-md);
+  transition: all var(--t-base);
+}
+.drop-zone.active {
+  border-color: var(--border);
+  background: var(--bg-hover);
+  min-height: 60px;
+}
+
+/* ── Buttons ───────────────────────────────────────────────── */
+.btn-primary {
+  background: var(--ink-strong);
+  color: var(--bg-card);
+  border: none;
+  border-radius: var(--r-sm);
+  padding: 7px 14px;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: background var(--t-fast);
+  white-space: nowrap;
+}
+.btn-primary:hover { opacity: 0.8; }
+
+.btn-secondary {
+  background: var(--bg-card);
+  color: var(--ink);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  padding: 6px 12px;
+  font-size: 12.5px;
+  font-weight: 500;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all var(--t-fast);
+  white-space: nowrap;
+}
+.btn-secondary:hover { background: var(--bg-subtle); }
+
+.btn-ghost {
+  background: transparent;
+  color: var(--fg-muted);
+  border: none;
+  padding: 6px 8px;
+  cursor: pointer;
+  border-radius: var(--r-sm);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12.5px;
+  transition: all var(--t-fast);
+}
+.btn-ghost:hover { background: var(--bg-subtle); color: var(--ink); }
+
+/* ── Tags ──────────────────────────────────────────────────── */
+.ds-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: var(--r-pill);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* ── Modal ─────────────────────────────────────────────────── */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+  backdrop-filter: blur(2px);
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: fadeIn 0.15s ease-out;
+}
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+.modal {
+  background: var(--bg-card);
+  border-radius: var(--r-lg);
+  box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+  width: 560px;
+  max-width: 95vw;
+  max-height: 90vh;
+  overflow-y: auto;
+  animation: slideUp 0.15s ease-out;
+  position: relative;
+}
+@keyframes slideUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+
+.modal-header {
+  padding: 20px 22px 16px;
+  border-bottom: 1px solid var(--border-soft);
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+.modal-header h2 { font-size: 18px; font-weight: 600; color: var(--ink-strong); }
+.modal-body { padding: 20px 22px; display: flex; flex-direction: column; gap: 16px; }
+.modal-footer {
+  padding: 14px 22px;
+  border-top: 1px solid var(--border-soft);
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+/* ── Form fields ───────────────────────────────────────────── */
+.field-label {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--fg-muted);
+  margin-bottom: 6px;
+}
+.field-input, .field-select, .field-textarea {
+  width: 100%;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  padding: 8px 10px;
+  font-size: 13px;
+  font-family: var(--font-body);
+  color: var(--ink);
+  outline: none;
+  transition: border-color var(--t-fast);
+}
+.field-input:focus, .field-select:focus, .field-textarea:focus { border-color: var(--ink-strong); }
+.field-textarea { resize: vertical; min-height: 80px; }
+.field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+
+/* ── Detail Panel ──────────────────────────────────────────── */
+#detail-panel {
+  width: 340px;
+  min-width: 340px;
+  background: var(--bg-card);
+  border-left: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
+  transition: width var(--t-base), min-width var(--t-base);
+}
+#detail-panel.hidden { width: 0; min-width: 0; border-left: none; overflow: hidden; }
+
+.panel-header {
+  padding: 16px 18px 14px;
+  border-bottom: 1px solid var(--border-soft);
+  flex-shrink: 0;
+}
+.panel-eyebrow {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--fg-subtle);
+  margin-bottom: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.panel-title { font-size: 17px; font-weight: 600; color: var(--ink-strong); line-height: 1.3; margin-bottom: 12px; }
+
+.panel-body { flex: 1; overflow-y: auto; padding: 16px 18px; display: flex; flex-direction: column; gap: 16px; }
+.panel-body::-webkit-scrollbar { width: 4px; }
+.panel-body::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+.panel-section-label {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--fg-subtle);
+  margin-bottom: 8px;
+}
+
+.meta-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+}
+.meta-row i { color: var(--fg-subtle); font-size: 14px; }
+.meta-key { color: var(--fg-muted); min-width: 70px; font-size: 12px; }
+.meta-val { color: var(--ink); font-weight: 500; }
+
+/* Comments */
+.comment-item {
+  display: flex;
+  gap: 10px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border-soft);
+}
+.comment-item:last-child { border-bottom: none; }
+.comment-body { flex: 1; }
+.comment-who { font-size: 12px; font-weight: 600; color: var(--ink-strong); }
+.comment-when { font-family: var(--font-mono); font-size: 9px; color: var(--fg-subtle); letter-spacing: 0.05em; margin-left: 6px; }
+.comment-text { font-size: 12.5px; color: var(--ink); margin-top: 3px; line-height: 1.5; }
+
+.comment-input-wrap {
+  display: flex;
+  gap: 8px;
+  align-items: flex-end;
+  padding: 12px 18px;
+  border-top: 1px solid var(--border-soft);
+  flex-shrink: 0;
+}
+.comment-input {
+  flex: 1;
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  padding: 7px 10px;
+  font-size: 12.5px;
+  font-family: var(--font-body);
+  color: var(--ink);
+  resize: none;
+  outline: none;
+  min-height: 36px;
+  max-height: 100px;
+  transition: border-color var(--t-fast);
+}
+.comment-input:focus { border-color: var(--ink-strong); }
+
+/* ── Status ────────────────────────────────────────────────── */
+.status-select {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+.status-pill {
+  padding: 4px 10px;
+  border-radius: var(--r-pill);
+  border: 1px solid var(--border);
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+  transition: all var(--t-fast);
+  color: var(--fg-muted);
+  background: transparent;
+}
+.status-pill.active { border-color: var(--ink-strong); background: var(--ink-strong); color: var(--bg-card); }
+.status-pill:hover:not(.active) { border-color: var(--border-soft); background: var(--bg-subtle); }
+
+/* ── Toast ─────────────────────────────────────────────────── */
+#toast-container {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 999;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  pointer-events: none;
+}
+.toast {
+  background: #111827;
+  color: #fff;
+  padding: 10px 16px;
+  border-radius: var(--r-sm);
+  font-size: 12.5px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  animation: toastIn 0.2s ease-out forwards;
+  min-width: 240px;
+}
+.toast.error { background: var(--danger); }
+.toast.success { background: var(--ok); }
+@keyframes toastIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes toastOut { from { opacity: 1; } to { opacity: 0; transform: translateY(10px); } }
+
+/* ── Loader ────────────────────────────────────────────────── */
+.spinner {
+  width: 16px; height: 16px;
+  border: 2px solid rgba(255,255,255,0.3);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── Config screen ─────────────────────────────────────────── */
+#config-screen {
+  position: fixed;
+  inset: 0;
+  background: var(--bg-canvas);
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.config-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-pop);
+  width: 460px;
+  max-width: 95vw;
+  padding: 32px;
+}
+.config-logo { display: flex; align-items: center; gap: 10px; margin-bottom: 24px; }
+
+/* ── Projects view ─────────────────────────────────────────── */
+#projects-view { padding: 24px 28px; flex: 1; overflow-y: auto; }
+.projects-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; margin-top: 20px; }
+.project-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  padding: 18px;
+  cursor: pointer;
+  transition: all var(--t-base);
+  box-shadow: var(--shadow-card);
+}
+.project-card:hover { border-color: var(--border-soft); box-shadow: var(--shadow-pop); transform: translateY(-1px); }
+.project-card-header { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 14px; }
+.project-icon {
+  width: 36px; height: 36px;
+  border-radius: var(--r-sm);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px;
+  flex-shrink: 0;
+}
+.project-name { font-size: 15px; font-weight: 600; color: var(--ink-strong); letter-spacing: -0.01em; }
+.project-desc { font-size: 12px; color: var(--fg-muted); margin-top: 2px; }
+.project-footer { display: flex; align-items: center; gap: 8px; margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border-soft); }
+
+/* ── Empty state ───────────────────────────────────────────── */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  color: var(--fg-subtle);
+  gap: 12px;
+}
+.empty-state i { font-size: 40px; opacity: 0.4; }
+.empty-state-title { font-size: 15px; font-weight: 600; color: var(--fg-muted); }
+.empty-state-sub { font-size: 12.5px; color: var(--fg-subtle); text-align: center; }
+
+/* ── View toggle buttons ───────────────────────────────────── */
+.view-toggles {
+  display: flex;
+  gap: 2px;
+  background: var(--bg-subtle);
+  border-radius: var(--r-sm);
+  padding: 3px;
+  border: 1px solid var(--border);
+}
+.view-btn {
+  display: flex; align-items: center; justify-content: center;
+  width: 30px; height: 30px;
+  border: none;
+  background: transparent;
+  color: var(--fg-muted);
+  border-radius: var(--r-xs);
+  cursor: pointer;
+  font-size: 15px;
+  transition: all var(--t-fast);
+}
+.view-btn:hover { background: var(--bg-hover); color: var(--ink); }
+.view-btn.active { background: var(--bg-card); color: var(--ink-strong); box-shadow: 0 1px 3px rgba(0,0,0,0.10); }
+
+/* ── Table view ────────────────────────────────────────────── */
+.ds-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.ds-table thead th {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--fg-subtle);
+  padding: 8px 14px;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+  font-weight: 600;
+  white-space: nowrap;
+  background: var(--bg-card);
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+.ds-table tbody tr {
+  border-bottom: 1px solid var(--border-soft);
+  cursor: pointer;
+  transition: background var(--t-fast);
+}
+.ds-table tbody tr:hover { background: var(--bg-hover); }
+.ds-table tbody td {
+  padding: 10px 14px;
+  color: var(--ink);
+  vertical-align: middle;
+}
+.ds-table .indent-1 { padding-left: 32px; color: var(--fg-muted); font-size: 12px; }
+.tbl-progress-wrap { display: flex; align-items: center; gap: 8px; }
+.tbl-progress-track {
+  width: 80px; height: 4px;
+  background: var(--bg-subtle);
+  border-radius: var(--r-pill);
+  overflow: hidden;
+}
+.tbl-progress-fill { height: 100%; background: var(--ink-strong); border-radius: var(--r-pill); }
+.tbl-pct { font-family: var(--font-mono); font-size: 9px; color: var(--fg-subtle); white-space: nowrap; }
+
+/* Hierarchical table rows */
+.tbl-proj-row {
+  cursor: pointer;
+  border-bottom: 2px solid var(--border);
+  background: var(--bg-subtle);
+}
+.tbl-proj-row:hover { background: var(--bg-hover); }
+.tbl-proj-row td { padding: 12px 16px; }
+.tbl-proj-name {
+  font-family: var(--font-display);
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--ink-strong);
+}
+.tbl-col-row {
+  cursor: pointer;
+  background: var(--bg-card);
+  border-bottom: 1px solid var(--border-soft);
+}
+.tbl-col-row:hover { background: var(--bg-hover); }
+.tbl-col-row td { padding: 9px 16px; }
+.tbl-col-name {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--fg-muted);
+}
+.tbl-task-row {
+  cursor: pointer;
+  background: var(--bg-card);
+  border-bottom: 1px solid var(--border-soft);
+}
+.tbl-task-row:hover { background: var(--bg-hover); }
+.tbl-task-row td { padding: 9px 14px; }
+.tbl-subtask-row {
+  cursor: pointer;
+  background: var(--bg-canvas);
+  border-bottom: 1px solid var(--border-soft);
+}
+.tbl-subtask-row:hover { background: var(--bg-hover); }
+.tbl-subtask-row td { padding: 7px 14px; }
+.tbl-badge {
+  display: inline-flex; align-items: center; gap: 3px;
+  padding: 1px 7px;
+  border-radius: var(--r-pill);
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--fg-muted);
+  background: var(--border-soft);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* ── Timeline view ─────────────────────────────────────────── */
+#timeline-wrap {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+#timeline-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  border-bottom: 1px solid var(--border-soft);
+  background: var(--bg-card);
+  flex-shrink: 0;
+}
+#timeline-controls .tl-ctrl-label {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--fg-subtle);
+  margin-right: 4px;
+}
+#timeline-scroll-area {
+  flex: 1;
+  overflow: auto;
+  position: relative;
+}
+.tl-container {
+  display: flex;
+  min-width: 100%;
+}
+/* Left labels column */
+.tl-labels {
+  width: 200px;
+  min-width: 200px;
+  flex-shrink: 0;
+  position: sticky;
+  left: 0;
+  z-index: 10;
+  background: var(--bg-card);
+  border-right: 1px solid var(--border);
+}
+.tl-label-header {
+  height: 56px;
+  display: flex; align-items: flex-end;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--fg-subtle);
+}
+.tl-row-label {
+  height: 44px;
+  display: flex; align-items: center;
+  padding: 0 12px;
+  border-bottom: 1px solid var(--border-soft);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--ink);
+  cursor: pointer;
+  transition: background var(--t-fast);
+  overflow: hidden;
+}
+.tl-row-label:hover { background: var(--bg-hover); }
+.tl-row-label .tl-assignee-dot {
+  width: 20px; height: 20px;
+  border-radius: var(--r-xs);
+  background: var(--ink-strong);
+  color: var(--bg-card);
+  font-family: var(--font-mono);
+  font-size: 7px;
+  font-weight: 600;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+  margin-right: 8px;
+}
+.tl-row-label .tl-task-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* Right grid column */
+.tl-grid-area {
+  flex: 1;
+  position: relative;
+  min-width: 0;
+}
+.tl-header-row {
+  height: 56px;
+  position: sticky;
+  top: 0;
+  z-index: 9;
+  background: var(--bg-card);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+}
+.tl-month-cell {
+  position: absolute;
+  top: 0;
+  height: 26px;
+  display: flex; align-items: center;
+  padding: 0 8px;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--fg-muted);
+  border-right: 1px solid var(--border-soft);
+  overflow: hidden;
+}
+.tl-day-cell {
+  position: absolute;
+  top: 26px;
+  height: 30px;
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: var(--fg-subtle);
+  border-right: 1px solid var(--border-soft);
+  overflow: hidden;
+}
+.tl-day-cell.weekend { background: rgba(0,0,0,0.02); }
+.tl-day-cell.today-header { color: var(--accent); font-weight: 700; }
+/* Body rows */
+.tl-body-row {
+  height: 44px;
+  display: flex; align-items: center;
+  border-bottom: 1px solid var(--border-soft);
+  position: relative;
+  cursor: pointer;
+  transition: background var(--t-fast);
+}
+.tl-body-row:hover { background: rgba(0,0,0,0.02); }
+.tl-col-divider {
+  position: absolute;
+  top: 0; bottom: 0;
+  width: 1px;
+  background: var(--border-soft);
+  pointer-events: none;
+}
+.tl-col-divider.weekend-bg {
+  width: 0;
+}
+.tl-today-line {
+  position: absolute;
+  top: -56px; /* extend into header */
+  bottom: 0;
+  width: 2px;
+  background: var(--accent);
+  opacity: 0.8;
+  pointer-events: none;
+  z-index: 5;
+}
+.tl-today-line::before {
+  content: 'TODAY';
+  position: absolute;
+  top: 2px;
+  left: 4px;
+  font-family: var(--font-mono);
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--accent);
+  white-space: nowrap;
+}
+/* Task bars */
+.tl-bar {
+  position: absolute;
+  height: 26px;
+  border-radius: var(--r-sm);
+  display: flex; align-items: center;
+  padding: 0 10px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: #fff;
+  overflow: hidden;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: filter var(--t-fast), transform var(--t-fast);
+  box-shadow: 0 1px 4px rgba(0,0,0,0.18);
+}
+.tl-bar:hover { filter: brightness(1.1); transform: scaleY(1.05); }
+.tl-bar .tl-bar-progress {
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,0.18);
+  border-radius: var(--r-sm);
+  transform-origin: left;
+}
+.tl-bar-label {
+  position: relative;
+  z-index: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* Today in header */
+.tl-today-badge {
+  position: absolute;
+  top: -4px;
+  transform: translateX(-50%);
+  background: var(--accent);
+  color: #fff;
+  font-family: var(--font-mono);
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  padding: 2px 6px;
+  border-radius: var(--r-pill);
+  white-space: nowrap;
+  z-index: 6;
+}
+/* Subtask card badges */
+.card-subtasks {
+  display: inline-flex; align-items: center; gap: 3px;
+  font-family: var(--font-mono); font-size: 9px;
+  color: var(--fg-subtle); background: var(--bg-subtle);
+  padding: 1px 5px; border-radius: var(--r-pill);
+  margin-left: 4px; vertical-align: middle;
+  border: 1px solid var(--border-soft);
+}
+.card-subtasks.done { color: var(--ok-fg); background: var(--ok-bg); border-color: transparent; }
+</style>
+</head>
+
+<body>
+
+<!-- Login Screen -->
+<div id="config-screen">
+  <div class="config-card">
+    <div class="config-logo">
+      <div class="logo-sq" style="width:40px;height:40px;font-size:18px;">K</div>
+      <div>
+        <div class="logo-name" style="font-size:17px;">Kanban PM</div>
+        <div class="logo-sub">Operations Cockpit · DMT</div>
+      </div>
+    </div>
+    <div style="margin-bottom:20px;">
+      <p style="font-size:13px;color:var(--fg-muted);line-height:1.6;">Sign in with your Oregon Taxi / DMT account.</p>
+    </div>
+    <form id="login-form" style="display:flex;flex-direction:column;gap:14px;" onsubmit="handleLogin(event)">
+      <div>
+        <label class="field-label">Email</label>
+        <input id="cfg-email" class="field-input" type="email" placeholder="you@oregontaxi.com" autocomplete="username" required>
+      </div>
+      <div>
+        <label class="field-label">Password</label>
+        <input id="cfg-password" class="field-input" type="password" placeholder="••••••••" autocomplete="current-password" required>
+      </div>
+      <div style="margin-top:6px;display:flex;gap:8px;flex-direction:column;">
+        <button class="btn-primary" id="cfg-save-btn" type="submit" style="width:100%;justify-content:center;">
+          <i class="ph-bold ph-arrow-right"></i> Sign In
+        </button>
+      </div>
+    </form>
+    <div id="cfg-error" style="margin-top:12px;font-size:12px;color:var(--danger-fg);display:none;"></div>
+    <div id="cfg-loading" style="margin-top:12px;font-size:12px;color:var(--fg-subtle);display:none;text-align:center;">
+      <div class="spinner" style="display:inline-block;border-color:rgba(0,0,0,0.15);border-top-color:var(--ink-strong);margin-right:6px;"></div> Checking session…
+    </div>
+  </div>
+</div>
+
+<!-- App Shell -->
+<div id="app" style="display:none;">
+
+  <!-- Sidebar -->
+  <aside id="sidebar">
+    <div class="sidebar-logo">
+      <div class="logo-sq">K</div>
+      <div>
+        <div class="logo-name">Kanban PM</div>
+        <div class="logo-sub">Operations Cockpit</div>
+      </div>
+    </div>
+
+    <div class="sidebar-nav">
+      <a href="index.html" class="nav-item" style="color: var(--fg-muted); margin-bottom: 8px; text-decoration: none;">
+        <i class="ph-bold ph-arrow-left"></i> Back to Hub
+      </a>
+
+      <div class="sidebar-section-label" style="padding:10px 8px 6px;">Workspace</div>
+      <button class="nav-item active" id="nav-board" onclick="showView('board')">
+        <i class="ph-bold ph-kanban"></i> Board
+      </button>
+      <button class="nav-item" id="nav-projects" onclick="showView('projects')">
+        <i class="ph-bold ph-folder-open"></i> Projects
+        <span class="nav-badge" id="nav-project-count">0</span>
+      </button>
+    </div>
+
+    <div class="sidebar-section-label">Projects</div>
+    <div class="sidebar-projects" id="sidebar-projects">
+      <!-- filled by JS -->
+    </div>
+
+    <div style="padding:8px 12px 0;border-top:1px solid var(--border-soft);">
+      <button class="nav-item" onclick="showNewProjectModal()">
+        <i class="ph-bold ph-plus"></i> New Project
+      </button>
+      <button class="nav-item" onclick="handleSignOut()">
+        <i class="ph-bold ph-sign-out"></i> Sign Out
+      </button>
+    </div>
+
+    <div class="sidebar-footer" style="justify-content: space-between;">
+      <div style="display: flex; align-items: center; gap: 10px;">
+        <div class="avatar-sq" id="user-avatar">JM</div>
+        <div>
+          <div class="footer-name" id="user-name">User</div>
+          <div class="footer-role" id="user-role">Dispatcher</div>
+        </div>
+      </div>
+      <button class="btn-ghost" onclick="toggleTheme()" title="Toggle Theme" style="padding: 4px;">
+        <i class="ph-bold ph-moon" id="theme-icon"></i>
+      </button>
+    </div>
+  </aside>
+
+  <!-- Main content -->
+  <div id="main">
+
+    <!-- Board View -->
+    <div id="board-view" style="display:flex;flex-direction:column;flex:1;overflow:hidden;min-width:0;">
+      <div id="page-header">
+        <div class="header-row">
+          <div>
+            <div class="page-eyebrow" id="board-eyebrow">WORKSPACE · SELECT A PROJECT</div>
+            <div class="page-title" id="board-title">Dispatch Board.</div>
+          </div>
+          <div class="header-actions">
+            <button class="btn-secondary" id="manage-cols-btn" onclick="showManageColumns()" style="display:none;">
+              <i class="ph ph-columns"></i> Columns
+            </button>
+            <button class="btn-primary" id="new-task-btn" onclick="showNewTaskModal()" style="display:none;">
+              <i class="ph-bold ph-plus"></i> New Task
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div id="toolbar">
+        
+        <div class="view-toggles" id="view-toggles">
+          <button class="view-btn active" id="btn-view-board" onclick="switchBoardView('board')" title="Kanban Board"><i class="ph-bold ph-kanban"></i></button>
+          <button class="view-btn" id="btn-view-table" onclick="switchBoardView('table')" title="Table View"><i class="ph-bold ph-list-dashes"></i></button>
+          <button class="view-btn" id="btn-view-timeline" onclick="switchBoardView('timeline')" title="Timeline / Gantt"><i class="ph-bold ph-calendar-dots"></i></button>
+        </div>
+        <div class="search-wrap">
+          <i class="ph ph-magnifying-glass"></i>
+          <input class="search-input" type="text" id="search-input" placeholder="Search tasks…" oninput="filterCards()">
+        </div>
+        <button class="btn-secondary" id="filter-prio-btn" onclick="cycleFilter()">
+          <i class="ph ph-funnel"></i> <span id="filter-label">All</span>
+        </button>
+        <div class="stats-strip" id="stats-strip">
+          <div class="stat-chip">
+            <div><div class="stat-num" id="stat-total">0</div><div class="stat-lbl">Tasks</div></div>
+          </div>
+          <div class="stat-chip">
+            <div><div class="stat-num" id="stat-open">0</div><div class="stat-lbl">Open</div></div>
+          </div>
+          <div class="stat-chip">
+            <div><div class="stat-num" id="stat-overdue" style="color:var(--danger)">0</div><div class="stat-lbl">Overdue</div></div>
+          </div>
+          <div class="stat-chip">
+            <div><div class="stat-num" id="stat-pct">0%</div><div class="stat-lbl">Progress</div></div>
+          </div>
+        </div>
+      </div>
+
+      <div style="display:flex;flex:1;overflow:hidden;min-width:0;">
+        
+        <div id="table-wrap" style="display:none; flex:1; overflow:auto; padding: 20px 28px;">
+            <table class="ds-table" id="tasks-table">
+                <thead><tr>
+                  <th style="width:50%;">Task</th>
+                  <th style="width:5%;"></th>
+                  <th>Priority</th>
+                  <th>Assignee</th>
+                  <th>Due Date</th>
+                  <th>Progress</th>
+                </tr></thead>
+                <tbody id="tasks-table-body"></tbody>
+            </table>
+        </div>
+        <div id="timeline-wrap" style="display:none; flex:1; flex-direction:column; overflow:hidden;">
+          <div id="timeline-controls">
+            <span class="tl-ctrl-label">Zoom</span>
+            <button class="btn-secondary" style="padding:4px 10px;font-size:11px;" onclick="tlZoom(-1)"><i class="ph-bold ph-minus"></i></button>
+            <button class="btn-secondary" style="padding:4px 10px;font-size:11px;" onclick="tlZoom(1)"><i class="ph-bold ph-plus"></i></button>
+            <button class="btn-secondary" style="padding:4px 10px;font-size:11px;margin-left:4px;" onclick="tlGoToday()"><i class="ph ph-crosshair"></i> Today</button>
+            <div style="margin-left:auto;display:flex;gap:10px;align-items:center;">
+              <div style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--fg-muted);"><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#dc2626;"></span>High</div>
+              <div style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--fg-muted);"><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#d97706;"></span>Med</div>
+              <div style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--fg-muted);"><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#6b7280;"></span>Low</div>
+            </div>
+          </div>
+          <div id="timeline-scroll-area">
+            <div id="timeline-canvas"></div>
+          </div>
+        </div>
+        <div id="board-wrap">
+          <div id="board">
+            <div class="empty-state" style="min-width:400px;width:100%;" id="board-empty">
+              <i class="ph-bold ph-kanban"></i>
+              <div class="empty-state-title">No project selected</div>
+              <div class="empty-state-sub">Choose a project from the sidebar,<br>or create a new one to get started.</div>
+              <button class="btn-primary" style="margin-top:8px;" onclick="showNewProjectModal()">
+                <i class="ph-bold ph-plus"></i> New Project
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Detail panel -->
+        <aside id="detail-panel" class="hidden">
+          <div class="panel-header">
+            <div class="panel-eyebrow">
+              <span id="panel-eyebrow-text">TASK · –</span>
+              <button class="btn-ghost" style="padding:2px 4px;" onclick="closePanel()"><i class="ph-bold ph-x" style="font-size:14px;"></i></button>
+            </div>
+            <div class="panel-title" id="panel-title">–</div>
+            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+              <div class="status-select" id="panel-column-select"></div>
+            </div>
+          </div>
+          <div class="panel-body" id="panel-body">
+            <!-- filled by JS -->
+          </div>
+          <div class="comment-input-wrap">
+            <div class="avatar-sq" id="panel-user-avatar" style="width:26px;height:26px;font-size:9px;flex-shrink:0;">JM</div>
+            <textarea class="comment-input" id="comment-input" placeholder="Add a note…" rows="1" onkeydown="handleCommentKey(event)"></textarea>
+            <button class="btn-primary" style="padding:6px 10px;" onclick="postComment()"><i class="ph-bold ph-paper-plane-tilt"></i></button>
+          </div>
+        </aside>
+      </div>
+    </div>
+
+    <!-- Projects View -->
+    <div id="projects-view" style="display:none;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+        <div>
+          <div class="page-eyebrow">WORKSPACE · ALL PROJECTS</div>
+          <div class="page-title">Projects.</div>
+        </div>
+        <button class="btn-primary" onclick="showNewProjectModal()"><i class="ph-bold ph-plus"></i> New Project</button>
+      </div>
+      <div class="projects-grid" id="projects-grid"></div>
+    </div>
+
+  </div>
+</div>
+
+<!-- Toast container -->
+<div id="toast-container"></div>
+
+<!-- New Task Modal -->
+<div id="task-modal" style="display:none;">
+  <div class="modal-backdrop" onclick="if(event.target===this)closeTaskModal()">
+    <div class="modal">
+      <div class="modal-header">
+        <div style="flex:1;">
+          <div class="page-eyebrow" id="task-modal-eyebrow">NEW TASK</div>
+          <h2 id="task-modal-title">Add Task</h2>
+        </div>
+        <button class="btn-ghost" onclick="closeTaskModal()"><i class="ph-bold ph-x"></i></button>
+      </div>
+      <div class="modal-body">
+        <div>
+          <label class="field-label">Title *</label>
+          <input class="field-input" type="text" id="task-title-input" placeholder="Describe the task…" required>
+        </div>
+        <div>
+          <label class="field-label">Description</label>
+          <textarea class="field-textarea" id="task-desc-input" placeholder="Additional details…"></textarea>
+        </div>
+        <div class="field-row">
+          <div>
+            <label class="field-label">Column</label>
+            <select class="field-select" id="task-column-select"></select>
+          </div>
+          <div>
+            <label class="field-label">Priority</label>
+            <select class="field-select" id="task-prio-select">
+              <option value="high">High</option>
+              <option value="med" selected>Medium</option>
+              <option value="low">Low</option>
+            </select>
+          </div>
+        </div>
+        <div class="field-row">
+          <div>
+            <label class="field-label">Assignee</label>
+            <input class="field-input" type="text" id="task-assignee-input" placeholder="Initials (e.g. JM)" maxlength="3" style="text-transform:uppercase;">
+          </div>
+          <div>
+            <label class="field-label">Due Date</label>
+            <input class="field-input" type="date" id="task-due-input">
+          </div>
+        </div>
+        <div>
+          <label class="field-label">Progress <span id="task-progress-lbl">0%</span></label>
+          <input type="range" id="task-progress-input" min="0" max="100" value="0" style="width:100%;accent-color:var(--ink-strong);" oninput="document.getElementById('task-progress-lbl').textContent=this.value+'%'">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-secondary" onclick="closeTaskModal()">Cancel</button>
+        <button class="btn-primary" id="task-save-btn" onclick="saveTask()">
+          <i class="ph-bold ph-check"></i> Save Task
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- New Project Modal -->
+<div id="project-modal" style="display:none;">
+  <div class="modal-backdrop" onclick="if(event.target===this)closeProjectModal()">
+    <div class="modal">
+      <div class="modal-header">
+        <div style="flex:1;">
+          <div class="page-eyebrow">NEW PROJECT</div>
+          <h2>Create Project</h2>
+        </div>
+        <button class="btn-ghost" onclick="closeProjectModal()"><i class="ph-bold ph-x"></i></button>
+      </div>
+      <div class="modal-body">
+        <div class="field-row">
+          <div>
+            <label class="field-label">Icon (emoji)</label>
+            <input class="field-input" type="text" id="proj-icon-input" placeholder="📋" maxlength="4" value="📋">
+          </div>
+          <div>
+            <label class="field-label">Color</label>
+            <input class="field-input" type="color" id="proj-color-input" value="#D97757" style="height:38px;padding:3px;">
+          </div>
+        </div>
+        <div>
+          <label class="field-label">Project Name *</label>
+          <input class="field-input" type="text" id="proj-name-input" placeholder="e.g. Fleet Repair Backlog">
+        </div>
+        <div>
+          <label class="field-label">Description</label>
+          <input class="field-input" type="text" id="proj-desc-input" placeholder="What is this project for?">
+        </div>
+        <div>
+          <label class="field-label" style="margin-bottom:8px;">Default Columns (comma-separated)</label>
+          <input class="field-input" type="text" id="proj-cols-input" value="Intake, In Progress, Review, Closed">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-secondary" onclick="closeProjectModal()">Cancel</button>
+        <button class="btn-primary" id="proj-save-btn" onclick="saveProject()">
+          <i class="ph-bold ph-check"></i> Create Project
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Manage Columns Modal -->
+<div id="cols-modal" style="display:none;">
+  <div class="modal-backdrop" onclick="if(event.target===this)closeColsModal()">
+    <div class="modal" style="width:420px;">
+      <div class="modal-header">
+        <div style="flex:1;"><div class="page-eyebrow">BOARD</div><h2>Manage Columns</h2></div>
+        <button class="btn-ghost" onclick="closeColsModal()"><i class="ph-bold ph-x"></i></button>
+      </div>
+      <div class="modal-body">
+        <div id="cols-list" style="display:flex;flex-direction:column;gap:8px;"></div>
+        <div style="display:flex;gap:8px;margin-top:4px;">
+          <input class="field-input" type="text" id="new-col-name" placeholder="New column name…" style="flex:1;">
+          <button class="btn-primary" onclick="addColumn()"><i class="ph-bold ph-plus"></i></button>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-secondary" onclick="closeColsModal()">Done</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════
+// CONFIG & SUPABASE AUTH
+// ═══════════════════════════════════════════════════════
+
+const SUPA_URL_HARDCODED = 'https://mdutrtmdjodabggirntb.supabase.co';
+const SUPA_KEY_HARDCODED = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kdXRydG1kam9kYWJnZ2lybnRiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ5MDk3MzQsImV4cCI6MjA5MDQ4NTczNH0.GlrbsjnkBSwhnguBQUCb418NxvRO02PhXhBJZ69xTi4';
+
+const SUPA_URL = SUPA_URL_HARDCODED;
+const SUPA_KEY = SUPA_KEY_HARDCODED;
+
+let USER_INITIALS = 'JM';
+let currentSession = null; // holds the Supabase auth session (access_token, user, etc.)
+
+function getConfig() {
+  try { return JSON.parse(localStorage.getItem('kanban_cfg') || '{}'); } catch { return {}; }
+}
+function setConfig(cfg) { localStorage.setItem('kanban_cfg', JSON.stringify(cfg)); }
+
+// ── Low-level Supabase Auth REST calls (no SDK, keeps this a single file) ──
+async function supaAuth(path, body) {
+  const res = await fetch(`${SUPA_URL}/auth/v1${path}`, {
+    method: 'POST',
+    headers: { 'apikey': SUPA_KEY, 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error_description || data.msg || data.error || 'Authentication failed');
+  return data;
+}
+
+async function supaAuthRefresh(refreshToken) {
+  return supaAuth('/token?grant_type=refresh_token', { refresh_token: refreshToken });
+}
+
+function saveSession(session) {
+  currentSession = session;
+  const cfg = getConfig();
+  cfg.session = session;
+  setConfig(cfg);
+}
+
+function clearSession() {
+  currentSession = null;
+  const cfg = getConfig();
+  delete cfg.session;
+  setConfig(cfg);
+}
+
+// ── Data REST calls — authenticated as the signed-in user (RLS-aware) ──
+async function supaFetch(path, opts = {}) {
+  if (!currentSession?.access_token) throw new Error('Not signed in');
+  const res = await fetch(`${SUPA_URL}/rest/v1${path}`, {
+    headers: {
+      'apikey': SUPA_KEY,
+      'Authorization': `Bearer ${currentSession.access_token}`,
+      'Content-Type': 'application/json',
+      'Prefer': opts.prefer || 'return=representation',
+      ...(opts.headers || {})
+    },
+    ...opts
+  });
+  if (res.status === 401) {
+    // Try one silent refresh, then retry once
+    const refreshed = await tryRefreshSession();
+    if (refreshed) return supaFetch(path, opts);
+    handleSignOut(true);
+    throw new Error('Session expired — please sign in again');
+  }
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ message: res.statusText }));
+    throw new Error(err.message || err.error || res.statusText);
+  }
+  if (res.status === 204) return null;
+  return res.json();
+}
+
+async function tryRefreshSession() {
+  if (!currentSession?.refresh_token) return false;
+  try {
+    const session = await supaAuthRefresh(currentSession.refresh_token);
+    saveSession(session);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function showCfgError(msg) {
+  const el = document.getElementById('cfg-error');
+  el.textContent = msg;
+  el.style.display = 'block';
+}
+function hideCfgError() {
+  document.getElementById('cfg-error').style.display = 'none';
+}
+
+async function handleLogin(e) {
+  e.preventDefault();
+  hideCfgError();
+  const email = document.getElementById('cfg-email').value.trim().toLowerCase();
+  const password = document.getElementById('cfg-password').value;
+  const btn = document.getElementById('cfg-save-btn');
+  btn.disabled = true;
+  btn.innerHTML = '<div class="spinner"></div> Signing in…';
+  try {
+    const session = await supaAuth('/token?grant_type=password', { email, password });
+    saveSession(session);
+    await launch(session);
+  } catch (err) {
+    showCfgError(err.message || 'Invalid email or password.');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="ph-bold ph-arrow-right"></i> Sign In';
+  }
+}
+
+async function handleSignOut(silent) {
+  if (!silent && !confirm('Sign out?')) return;
+  try {
+    if (currentSession?.access_token) {
+      await fetch(`${SUPA_URL}/auth/v1/logout`, {
+        method: 'POST',
+        headers: { 'apikey': SUPA_KEY, 'Authorization': `Bearer ${currentSession.access_token}` }
+      });
+    }
+  } catch { /* ignore network errors on logout */ }
+  clearSession();
+  location.reload();
+}
+
+function toggleTheme() {
+  const isDark = document.body.classList.toggle('dark');
+  document.getElementById('theme-icon').className = isDark ? 'ph-bold ph-sun' : 'ph-bold ph-moon';
+  
+  const cfg = getConfig();
+  cfg.theme = isDark ? 'dark' : 'light';
+  setConfig(cfg);
+}
+
+// ═══════════════════════════════════════════════════════
+// API LAYER
+// ═══════════════════════════════════════════════════════
+
+const api = {
+  async getProjects() {
+    return supaFetch('/kanban_projects?select=*&order=created_at.asc');
+  },
+  async createProject(data) {
+    const [row] = await supaFetch('/kanban_projects', { method: 'POST', body: JSON.stringify(data) });
+    return row;
+  },
+  async deleteProject(id) {
+    await supaFetch(`/kanban_projects?id=eq.${id}`, { method: 'DELETE', prefer: 'return=minimal' });
+  },
+  async getColumns(projectId) {
+    return supaFetch(`/kanban_columns?project_id=eq.${projectId}&order=position.asc`);
+  },
+  async createColumn(data) {
+    const [row] = await supaFetch('/kanban_columns', { method: 'POST', body: JSON.stringify(data) });
+    return row;
+  },
+  async deleteColumn(id) {
+    await supaFetch(`/kanban_columns?id=eq.${id}`, { method: 'DELETE', prefer: 'return=minimal' });
+  },
+  async getTasks(projectId) {
+    return supaFetch(`/kanban_tasks?project_id=eq.${projectId}&order=position.asc`);
+  },
+  async createTask(data) {
+    const [row] = await supaFetch('/kanban_tasks', { method: 'POST', body: JSON.stringify(data) });
+    return row;
+  },
+  async updateTask(id, data) {
+    const [row] = await supaFetch(`/kanban_tasks?id=eq.${id}`, { method: 'PATCH', body: JSON.stringify({ ...data, updated_at: new Date().toISOString() }) });
+    return row;
+  },
+  async deleteTask(id) {
+    await supaFetch(`/kanban_tasks?id=eq.${id}`, { method: 'DELETE', prefer: 'return=minimal' });
+  },
+  async getComments(taskId) {
+    return supaFetch(`/kanban_comments?task_id=eq.${taskId}&order=created_at.asc`);
+  },
+  async addComment(data) {
+    const [row] = await supaFetch('/kanban_comments', { method: 'POST', body: JSON.stringify(data) });
+    return row;
+  }
+};
+
+// ═══════════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════════
+
+let state = {
+  projects: [],
+  currentProject: null,
+  columns: [],
+  tasks: [],
+  selectedTask: null,
+  filterPrio: 'all',
+  searchQuery: '',
+  editingTaskId: null,
+  currentBoardView: 'board',
+};
+
+// ═══════════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════════
+
+window.addEventListener('DOMContentLoaded', async () => {
+  const cfg = getConfig();
+  if (cfg.theme === 'dark') toggleTheme(); // Apply saved theme
+
+  if (cfg.session?.access_token) {
+    document.getElementById('login-form').style.display = 'none';
+    document.getElementById('cfg-loading').style.display = 'block';
+    currentSession = cfg.session;
+
+    // Verify/refresh the session before trusting it
+    const ok = await tryRefreshSession();
+    if (ok) {
+      await launch(currentSession);
+    } else {
+      // Refresh failed — session is dead, show login again
+      clearSession();
+      document.getElementById('cfg-loading').style.display = 'none';
+      document.getElementById('login-form').style.display = '';
+    }
+  }
+  // else: login form is visible by default, nothing to do
+});
+
+async function launch(session) {
+  currentSession = session;
+
+  // Fetch the user's profile for display name, role, initials
+  let name = session.user?.email?.split('@')[0] || 'User';
+  let role = 'Dispatcher';
+  try {
+    const rows = await supaFetch(`/profiles?id=eq.${session.user.id}&select=full_name,role`);
+    if (rows && rows[0]) {
+      name = rows[0].full_name || name;
+      role = rows[0].role || role;
+    }
+  } catch { /* profile lookup is best-effort */ }
+
+  const initials = name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 3) || 'U';
+  USER_INITIALS = initials;
+  document.getElementById('user-avatar').textContent = USER_INITIALS;
+  document.getElementById('panel-user-avatar').textContent = USER_INITIALS;
+  document.getElementById('user-name').textContent = name;
+  const roleEl = document.getElementById('user-role');
+  if (roleEl) roleEl.textContent = role.charAt(0).toUpperCase() + role.slice(1);
+
+  document.getElementById('config-screen').style.display = 'none';
+  document.getElementById('app').style.display = 'flex';
+  await loadProjects();
+}
+
+// ═══════════════════════════════════════════════════════
+// PROJECTS
+// ═══════════════════════════════════════════════════════
+
+async function loadProjects() {
+  try {
+    state.projects = await api.getProjects();
+    renderSidebarProjects();
+    renderProjectsGrid();
+    document.getElementById('nav-project-count').textContent = state.projects.length;
+    if (state.projects.length > 0 && !state.currentProject) {
+      await selectProject(state.projects[0].id);
+    }
+  } catch (e) { toast('Error loading projects: ' + e.message, 'error'); }
+}
+
+function renderSidebarProjects() {
+  const container = document.getElementById('sidebar-projects');
+  if (!state.projects.length) {
+    container.innerHTML = '<div style="padding:6px 10px;font-size:12px;color:var(--fg-subtle);">No projects yet</div>';
+    return;
+  }
+  container.innerHTML = state.projects.map(p => `
+    <div class="proj-item ${state.currentProject?.id === p.id ? 'active' : ''}" onclick="selectProject('${p.id}')">
+      <div class="proj-dot" style="background:${p.color || '#D97757'};"></div>
+      <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(p.name)}</span>
+      <span class="proj-count">${state.tasks.filter(t => t.project_id === p.id).length || ''}</span>
+    </div>
+  `).join('');
+}
+
+function renderProjectsGrid() {
+  const grid = document.getElementById('projects-grid');
+  if (!state.projects.length) {
+    grid.innerHTML = `<div class="empty-state" style="grid-column:1/-1;"><i class="ph-bold ph-folder-open"></i><div class="empty-state-title">No projects yet</div><div class="empty-state-sub">Create a project to start tracking tasks.</div></div>`;
+    return;
+  }
+  grid.innerHTML = state.projects.map(p => {
+    const taskCount = state.tasks.filter(t => t.project_id === p.id).length;
+    const openCount = state.tasks.filter(t => t.project_id === p.id && t.progress < 100).length;
+    return `
+    <div class="project-card" onclick="selectProject('${p.id}');showView('board')">
+      <div class="project-card-header">
+        <div class="project-icon" style="background:${p.color}20;">${p.icon || '📋'}</div>
+        <div>
+          <div class="project-name">${esc(p.name)}</div>
+          <div class="project-desc">${esc(p.description || '')}</div>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <span class="ds-tag" style="background:var(--bg-subtle);color:var(--fg-muted);">${taskCount} tasks</span>
+        <span class="ds-tag" style="background:var(--ok-bg);color:var(--ok-fg);">${openCount} open</span>
+      </div>
+      <div class="project-footer">
+        <div style="flex:1;">
+          <div style="height:4px;background:var(--border-soft);border-radius:9999px;overflow:hidden;">
+            <div style="width:${taskCount ? Math.round(((taskCount-openCount)/taskCount)*100) : 0}%;height:100%;background:var(--ink-strong);border-radius:9999px;"></div>
+          </div>
+        </div>
+        <span style="font-family:var(--font-mono);font-size:9px;color:var(--fg-subtle);">${taskCount ? Math.round(((taskCount-openCount)/taskCount)*100) : 0}%</span>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function selectProject(id) {
+  state.currentProject = state.projects.find(p => p.id === id);
+  if (!state.currentProject) return;
+  closePanel();
+  document.getElementById('board-eyebrow').textContent = 'WORKSPACE · ' + state.currentProject.name.toUpperCase();
+  document.getElementById('board-title').textContent = state.currentProject.name + '.';
+  document.getElementById('new-task-btn').style.display = '';
+  document.getElementById('manage-cols-btn').style.display = '';
+  renderSidebarProjects();
+  await loadBoard();
+}
+
+// ═══════════════════════════════════════════════════════
+// BOARD
+// ═══════════════════════════════════════════════════════
+
+async function loadBoard() {
+  if (!state.currentProject) return;
+  try {
+    [state.columns, state.tasks] = await Promise.all([
+      api.getColumns(state.currentProject.id),
+      api.getTasks(state.currentProject.id)
+    ]);
+    // Keep table cache in sync
+    if (state.currentProject) tableCache[state.currentProject.id] = { columns: state.columns, tasks: state.tasks };
+    refreshCurrentView();
+    updateStats();
+  } catch (e) { toast('Error loading board: ' + e.message, 'error'); }
+}
+
+function getFilteredTasks(colId, includeSubtasks = false) {
+  let tasks = state.tasks.filter(t => t.column_id === colId && (includeSubtasks || !t.parent_task_id));
+  if (state.filterPrio !== 'all') tasks = tasks.filter(t => t.priority === state.filterPrio);
+  if (state.searchQuery) {
+    const q = state.searchQuery.toLowerCase();
+    tasks = tasks.filter(t => t.title.toLowerCase().includes(q) || (t.assignee || '').toLowerCase().includes(q));
+  }
+  return tasks;
+}
+
+
+function switchBoardView(view) {
+  state.currentBoardView = view;
+  document.getElementById('btn-view-board').classList.toggle('active', view === 'board');
+  document.getElementById('btn-view-table').classList.toggle('active', view === 'table');
+  document.getElementById('btn-view-timeline').classList.toggle('active', view === 'timeline');
+  
+  document.getElementById('board-wrap').style.display = view === 'board' ? 'block' : 'none';
+  document.getElementById('table-wrap').style.display = view === 'table' ? 'flex' : 'none';
+  document.getElementById('timeline-wrap').style.display = view === 'timeline' ? 'flex' : 'none';
+  
+  refreshCurrentView();
+}
+
+function refreshCurrentView() {
+  if (state.currentBoardView === 'board') renderBoard();
+  else if (state.currentBoardView === 'table') renderTable();
+  else if (state.currentBoardView === 'timeline') renderTimeline();
+}
+
+function renderBoard() {
+  const board = document.getElementById('board');
+  const empty = document.getElementById('board-empty');
+
+  if (!state.currentProject || !state.columns.length) {
+    board.innerHTML = '';
+    board.appendChild(empty || createEmptyEl());
+    empty && (empty.style.display = '');
+    return;
+  }
+  if (empty) empty.style.display = 'none';
+
+  board.innerHTML = state.columns.map(col => {
+    const tasks = getFilteredTasks(col.id);
+    return `
+    <div class="column" id="col-${col.id}" data-col-id="${col.id}">
+      <div class="col-header">
+        <span class="col-label">${esc(col.name)}</span>
+        <span class="col-count">${state.tasks.filter(t => t.column_id === col.id).length}</span>
+        <button class="col-add-btn" onclick="showNewTaskModal('${col.id}')" title="Add task"><i class="ph-bold ph-plus" style="font-size:12px;"></i></button>
+      </div>
+      <div class="col-body" id="colbody-${col.id}"
+        ondragover="dragOver(event,'${col.id}')"
+        ondragleave="dragLeave(event,'${col.id}')"
+        ondrop="drop(event,'${col.id}')">
+        ${tasks.length === 0 ? `<div class="drop-zone" id="dz-${col.id}"></div>` : ''}
+        ${tasks.map(t => renderCard(t)).join('')}
+      </div>
+      <div class="col-add-row">
+        <div class="col-add-inline" onclick="showNewTaskModal('${col.id}')">
+          <i class="ph ph-plus" style="font-size:12px;"></i> Add task
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+
+  // Attach drag events
+  board.querySelectorAll('.task-card').forEach(card => {
+    card.addEventListener('dragstart', dragStart);
+    card.addEventListener('dragend', dragEnd);
+  });
+}
+
+
+
+// ═══════════════════════════════════════════════════════
+// TIMELINE (GANTT) STATE
+// ═══════════════════════════════════════════════════════
+let tlDayWidth = 32; // px per day
+
+function tlZoom(dir) {
+  tlDayWidth = Math.max(16, Math.min(80, tlDayWidth + dir * 8));
+  renderTimeline();
+}
+
+function tlGoToday() {
+  const area = document.getElementById('timeline-scroll-area');
+  const todayLine = document.getElementById('tl-today-line');
+  if (todayLine && area) {
+    const left = parseInt(todayLine.style.left) - area.clientWidth / 2;
+    area.scrollLeft = Math.max(0, left);
+  }
+}
+
+function renderTimeline() {
+  const canvas = document.getElementById('timeline-canvas');
+  if (!state.currentProject) { canvas.innerHTML = ''; return; }
+  
+  const tasks = state.tasks.filter(t => !t.parent_task_id && t.due_date);
+  if (!tasks.length) {
+    canvas.innerHTML = `<div class="empty-state" style="padding:60px 40px;">
+      <i class="ph-bold ph-calendar-dots"></i>
+      <div class="empty-state-title">No tasks with due dates</div>
+      <div class="empty-state-sub">Add due dates to tasks to see them on the timeline.</div>
+    </div>`;
+    return;
+  }
+
+  const today = new Date(); today.setHours(0,0,0,0);
+
+  // Compute date range
+  let minDate = new Date(today); minDate.setDate(minDate.getDate() - 7);
+  let maxDate = new Date(today); maxDate.setDate(maxDate.getDate() + 30);
+  tasks.forEach(t => {
+    const start = new Date(t.created_at); start.setHours(0,0,0,0);
+    const end = new Date(t.due_date + 'T12:00:00');
+    if (start < minDate) minDate = new Date(start);
+    if (end > maxDate) maxDate = new Date(end);
+  });
+  minDate.setDate(minDate.getDate() - 5);
+  maxDate.setDate(maxDate.getDate() + 5);
+
+  const totalDays = Math.round((maxDate - minDate) / 86400000);
+  const gridWidth = totalDays * tlDayWidth;
+  const LABEL_W = 220;
+  const ROW_H = 44;
+  const HEADER_H = 56;
+  const BAR_H = 26;
+
+  // Prio color map
+  const prioColor = { high: '#dc2626', med: '#d97706', low: '#6b7280' };
+
+  // Build month spans for header
+  const months = [];
+  let cur = new Date(minDate);
+  while (cur < maxDate) {
+    const monthStart = new Date(cur);
+    const monthEnd = new Date(cur.getFullYear(), cur.getMonth() + 1, 1);
+    const clampedEnd = monthEnd < maxDate ? monthEnd : maxDate;
+    const startDay = Math.round((monthStart - minDate) / 86400000);
+    const endDay = Math.round((clampedEnd - minDate) / 86400000);
+    months.push({ label: cur.toLocaleString('en-US', { month: 'short', year: '2-digit' }), startDay, endDay });
+    cur = new Date(cur.getFullYear(), cur.getMonth() + 1, 1);
+  }
+
+  // Today offset
+  const todayDay = Math.round((today - minDate) / 86400000);
+  const todayX = todayDay * tlDayWidth;
+
+  // ── Build HTML ──
+  // Month header cells
+  let monthHtml = months.map(m => `
+    <div class="tl-month-cell" style="left:${m.startDay*tlDayWidth}px;width:${(m.endDay-m.startDay)*tlDayWidth}px;">
+      ${m.label}
+    </div>`).join('');
+
+  // Day header cells
+  let dayHtml = '';
+  for (let i = 0; i < totalDays; i++) {
+    const d = new Date(minDate.getTime() + i * 86400000);
+    const dow = d.getDay();
+    const isWknd = dow === 0 || dow === 6;
+    const isToday = i === todayDay;
+    dayHtml += `<div class="tl-day-cell${isWknd ? ' weekend' : ''}${isToday ? ' today-header' : ''}" 
+      style="left:${i*tlDayWidth}px;width:${tlDayWidth}px;">
+      ${tlDayWidth >= 24 ? d.getDate() : (i % 3 === 0 ? d.getDate() : '')}
+    </div>`;
+  }
+
+  // Task rows — labels left, bars right
+  let labelsHtml = `<div class="tl-label-header">Task</div>`;
+  let bodyRows = '';
+
+  tasks.forEach(t => {
+    const color = prioColor[t.priority] || prioColor.med;
+    const taskStart = new Date(t.created_at); taskStart.setHours(0,0,0,0);
+    const taskEnd = new Date(t.due_date + 'T12:00:00');
+    const startDay = Math.max(0, Math.round((taskStart - minDate) / 86400000));
+    const endDay = Math.min(totalDays, Math.round((taskEnd - minDate) / 86400000));
+    const barWidth = Math.max((endDay - startDay) * tlDayWidth, tlDayWidth * 1.2);
+    const barLeft = startDay * tlDayWidth;
+    const pct = t.progress || 0;
+
+    // Column stripe dividers for this row
+    let dividers = '';
+    for (let i = 0; i < totalDays; i++) {
+      const d = new Date(minDate.getTime() + i * 86400000);
+      const dow = d.getDay();
+      const isWknd = dow === 0 || dow === 6;
+      if (isWknd) dividers += `<div style="position:absolute;top:0;bottom:0;left:${i*tlDayWidth}px;width:${tlDayWidth}px;background:rgba(0,0,0,0.025);pointer-events:none;"></div>`;
+      dividers += `<div class="tl-col-divider" style="left:${(i+1)*tlDayWidth}px;"></div>`;
+    }
+
+    labelsHtml += `
+      <div class="tl-row-label" onclick="openPanel('${t.id}')">
+        <div class="tl-assignee-dot">${esc((t.assignee||'?').slice(0,2).toUpperCase())}</div>
+        <div class="tl-task-name">${esc(t.title)}</div>
+      </div>`;
+
+    bodyRows += `
+      <div class="tl-body-row" onclick="openPanel('${t.id}')" style="width:${gridWidth}px;">
+        ${dividers}
+        <div class="tl-bar" style="left:${barLeft}px;width:${barWidth}px;background:${color};" title="${esc(t.title)} · ${pct}%">
+          <div class="tl-bar-progress" style="right:${100-pct}%;"></div>
+          <span class="tl-bar-label">${tlDayWidth >= 20 ? esc(t.assignee || '') + (t.title.length < 20 ? ' · ' + esc(t.title) : '') : ''}</span>
+        </div>
+      </div>`;
+  });
+
+  canvas.innerHTML = `
+    <div class="tl-container" style="min-width:${LABEL_W + gridWidth}px;">
+      <div class="tl-labels" style="width:${LABEL_W}px;min-width:${LABEL_W}px;">
+        ${labelsHtml}
+      </div>
+      <div class="tl-grid-area" style="width:${gridWidth}px;min-width:${gridWidth}px;position:relative;">
+        <div class="tl-header-row" style="width:${gridWidth}px;position:sticky;top:0;">
+          ${monthHtml}
+          ${dayHtml}
+          <div class="tl-today-badge" style="left:${todayX}px;">TODAY</div>
+        </div>
+        <div style="position:relative;width:${gridWidth}px;">
+          <div class="tl-today-line" id="tl-today-line" style="left:${todayX}px;top:0;bottom:0;"></div>
+          ${bodyRows}
+        </div>
+      </div>
+    </div>`;
+
+  // Auto-scroll to today on first render
+  requestAnimationFrame(() => {
+    const area = document.getElementById('timeline-scroll-area');
+    if (area) area.scrollLeft = Math.max(0, todayX - area.clientWidth / 3);
+  });
+}
+
+// ═══════════════════════════════════════════════════════
+// TABLE VIEW — all projects → columns → tasks
+// ═══════════════════════════════════════════════════════
+
+// Cache of {projectId: {columns:[], tasks:[]}} for the table view
+let tableCache = {};
+// Track collapsed state: Set of row IDs that are collapsed
+let tableCollapsed = new Set();
+
+async function loadTableViewData() {
+  // Always re-use what's already loaded for the current project
+  for (const p of state.projects) {
+    if (!tableCache[p.id]) {
+      try {
+        const [cols, tasks] = await Promise.all([api.getColumns(p.id), api.getTasks(p.id)]);
+        tableCache[p.id] = { columns: cols, tasks };
+      } catch (e) {
+        tableCache[p.id] = { columns: [], tasks: [] };
+      }
+    }
+  }
+  // Sync current project's live state into cache so edits are reflected
+  if (state.currentProject) {
+    tableCache[state.currentProject.id] = { columns: state.columns, tasks: state.tasks };
+  }
+}
+
+function tblToggle(id, e) {
+  e.stopPropagation();
+  if (tableCollapsed.has(id)) tableCollapsed.delete(id);
+  else tableCollapsed.add(id);
+  renderTable();
+}
+
+async function renderTable() {
+  const tbody = document.getElementById('tasks-table-body');
+
+  if (!state.projects.length) {
+    tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:40px;color:var(--fg-subtle);">No projects yet.</td></tr>`;
+    return;
+  }
+
+  // Ensure cache is warm (will no-op if already loaded)
+  await loadTableViewData();
+
+  let rows = '';
+
+  for (const p of state.projects) {
+    const { columns, tasks } = tableCache[p.id] || { columns: [], tasks: [] };
+    const projTasks = tasks.filter(t => !t.parent_task_id);
+    const projDone = projTasks.filter(t => t.progress === 100).length;
+    const projPct = projTasks.length ? Math.round((projDone / projTasks.length) * 100) : 0;
+    const projCollapsed = tableCollapsed.has('proj-' + p.id);
+
+    // ── Project row ──
+    rows += `
+      <tr class="tbl-proj-row" onclick="tblToggle('proj-${p.id}', event)">
+        <td colspan="6">
+          <div style="display:flex;align-items:center;gap:10px;">
+            <span style="display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;flex-shrink:0;color:var(--fg-subtle);font-size:13px;">
+              <i class="ph-bold ph-caret-${projCollapsed ? 'right' : 'down'}"></i>
+            </span>
+            <span style="font-size:18px;line-height:1;">${p.icon || '📋'}</span>
+            <span class="tbl-proj-name">${esc(p.name)}</span>
+            <span class="tbl-badge">${projTasks.length} task${projTasks.length !== 1 ? 's' : ''}</span>
+            <div style="display:flex;align-items:center;gap:6px;margin-left:auto;">
+              <div class="tbl-progress-track" style="width:100px;"><div class="tbl-progress-fill" style="width:${projPct}%;background:${p.color || 'var(--ink-strong)'};"></div></div>
+              <span class="tbl-pct">${projPct}%</span>
+            </div>
+          </div>
+        </td>
+      </tr>`;
+
+    if (projCollapsed) continue;
+
+    if (!columns.length) {
+      rows += `<tr style="background:var(--bg-canvas);"><td colspan="6" style="padding:8px 16px 8px 52px;font-size:12px;color:var(--fg-subtle);">No columns in this project.</td></tr>`;
+      continue;
+    }
+
+    for (const col of columns) {
+      const colTasks = tasks.filter(t => t.column_id === col.id && !t.parent_task_id);
+      const colCollapsed = tableCollapsed.has('col-' + col.id);
+      const colDone = colTasks.filter(t => t.progress === 100).length;
+
+      // ── Column row ──
+      rows += `
+        <tr class="tbl-col-row" onclick="tblToggle('col-${col.id}', event)">
+          <td colspan="6">
+            <div style="display:flex;align-items:center;gap:8px;padding-left:28px;">
+              <span style="display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;flex-shrink:0;color:var(--fg-subtle);font-size:11px;">
+                <i class="ph-bold ph-caret-${colCollapsed ? 'right' : 'down'}"></i>
+              </span>
+              <i class="ph ph-stack" style="font-size:13px;color:var(--fg-subtle);"></i>
+              <span class="tbl-col-name">${esc(col.name)}</span>
+              <span class="tbl-badge" style="background:var(--bg-subtle);color:var(--fg-subtle);">${colTasks.length}</span>
+              ${colDone > 0 ? `<span class="tbl-badge" style="background:var(--ok-bg);color:var(--ok-fg);">${colDone} done</span>` : ''}
+            </div>
+          </td>
+        </tr>`;
+
+      if (colCollapsed) continue;
+
+      if (!colTasks.length) {
+        rows += `<tr style="background:var(--bg-canvas);"><td colspan="6" style="padding:6px 16px 6px 80px;font-size:11px;color:var(--fg-subtle);font-style:italic;">No tasks</td></tr>`;
+        continue;
+      }
+
+      for (const t of colTasks) {
+        const prioClass = t.priority === 'high' ? 'prio-high' : t.priority === 'med' ? 'prio-med' : 'prio-low';
+        const isOverdue = t.due_date && new Date(t.due_date + 'T12:00:00') < new Date() && t.progress < 100;
+        const pct = t.progress || 0;
+        const subtasks = tasks.filter(st => st.parent_task_id === t.id);
+        const subDone = subtasks.filter(st => st.progress === 100).length;
+        const taskCollapsed = tableCollapsed.has('task-' + t.id);
+
+        // ── Task row ──
+        rows += `
+          <tr class="tbl-task-row" onclick="openPanel('${t.id}')">
+            <td>
+              <div style="display:flex;align-items:center;gap:8px;padding-left:60px;">
+                ${subtasks.length ? `<span style="display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;flex-shrink:0;color:var(--fg-subtle);font-size:10px;cursor:pointer;" onclick="tblToggle('task-${t.id}', event)"><i class="ph-bold ph-caret-${taskCollapsed ? 'right' : 'down'}"></i></span>` : '<span style="width:14px;flex-shrink:0;"></span>'}
+                <span style="font-weight:500;color:var(--ink-strong);">${esc(t.title)}</span>
+                ${subtasks.length ? `<span class="tbl-badge card-subtasks ${subDone === subtasks.length ? 'done' : ''}"><i class="ph-bold ph-list-checks"></i> ${subDone}/${subtasks.length}</span>` : ''}
+              </div>
+            </td>
+            <td></td>
+            <td><span class="card-prio ${prioClass}">${t.priority || 'med'}</span></td>
+            <td>${t.assignee ? `<div class="card-avatar" style="width:22px;height:22px;font-size:8px;">${esc(t.assignee.slice(0,3).toUpperCase())}</div>` : '<span style="color:var(--fg-subtle);">—</span>'}</td>
+            <td style="font-family:var(--font-mono);font-size:10px;color:${isOverdue ? 'var(--danger-fg)' : 'var(--fg-muted)'};">${t.due_date ? formatDate(t.due_date) + (isOverdue ? ' ⚠' : '') : '—'}</td>
+            <td><div class="tbl-progress-wrap"><div class="tbl-progress-track"><div class="tbl-progress-fill" style="width:${pct}%;"></div></div><span class="tbl-pct">${pct}%</span></div></td>
+          </tr>`;
+
+        // ── Subtask rows ──
+        if (!taskCollapsed && subtasks.length) {
+          for (const st of subtasks) {
+            const stPct = st.progress || 0;
+            rows += `
+              <tr class="tbl-subtask-row" onclick="openPanel('${st.id}')">
+                <td>
+                  <div style="display:flex;align-items:center;gap:6px;padding-left:86px;">
+                    <i class="ph ph-arrow-bend-down-right" style="font-size:11px;color:var(--fg-subtle);flex-shrink:0;"></i>
+                    <span style="font-size:12px;color:var(--fg-muted);">${esc(st.title)}</span>
+                  </div>
+                </td>
+                <td></td>
+                <td></td>
+                <td>${st.assignee ? `<div class="card-avatar" style="width:18px;height:18px;font-size:7px;">${esc(st.assignee.slice(0,3).toUpperCase())}</div>` : ''}</td>
+                <td style="font-family:var(--font-mono);font-size:10px;color:var(--fg-subtle);">${st.due_date ? formatDate(st.due_date) : '—'}</td>
+                <td><div class="tbl-progress-wrap"><div class="tbl-progress-track"><div class="tbl-progress-fill" style="width:${stPct}%;"></div></div><span class="tbl-pct">${stPct}%</span></div></td>
+              </tr>`;
+          }
+        }
+      }
+    }
+  }
+
+  tbody.innerHTML = rows;
+}
+
+function renderCard(t) {
+  const isOverdue = t.due_date && new Date(t.due_date) < new Date() && t.progress < 100;
+  const dueLabel = t.due_date ? formatDate(t.due_date) : '';
+  const prioClass = t.priority === 'high' ? 'prio-high' : t.priority === 'med' ? 'prio-med' : 'prio-low';
+
+  const subtasks = state.tasks.filter(st => st.parent_task_id === t.id);
+  const subDone = subtasks.filter(st => st.progress === 100).length;
+  const subBadge = subtasks.length > 0 ? `<div class="card-subtasks ${subDone === subtasks.length ? 'done' : ''}"><i class="ph-bold ph-list-checks"></i> ${subDone}/${subtasks.length}</div>` : '';
+
+  const selected = state.selectedTask?.id === t.id;
+
+  return `
+  <div class="task-card${selected ? ' ring-2 ring-offset-1' : ''}" 
+       id="card-${t.id}" 
+       draggable="true" 
+       data-task-id="${t.id}"
+       onclick="openPanel('${t.id}')"
+       style="${selected ? 'border-color:var(--ink-strong);' : ''}">
+    <div class="card-top">
+      <div class="card-title">${esc(t.title)} ${subBadge}</div>
+      <span class="card-prio ${prioClass}">${t.priority || 'med'}</span>
+    </div>
+    ${t.progress > 0 ? `
+    <div class="card-progress">
+      <div class="progress-track"><div class="progress-fill" style="width:${t.progress}%"></div></div>
+      <div class="progress-pct">${t.progress}%</div>
+    </div>` : ''}
+    ${(t.subtasks && t.subtasks.length > 0) ? `
+    <div style="display:flex;align-items:center;gap:4px;font-family:var(--font-mono);font-size:9px;color:var(--fg-subtle);margin-bottom:8px;">
+      <i class="ph ph-check-square-offset"></i> 
+      ${t.subtasks.filter(st => st.completed).length}/${t.subtasks.length}
+    </div>
+    ` : ''}
+    <div class="card-foot">
+      ${t.assignee ? `<div class="card-avatar">${esc(t.assignee.slice(0,3).toUpperCase())}</div>` : ''}
+      ${dueLabel ? `<span class="card-due${isOverdue ? ' overdue' : ''}">${dueLabel}</span>` : ''}
+    </div>
+  </div>`;
+}
+
+function updateStats() {
+  if (!state.currentProject) return;
+  const tasks = state.tasks;
+  const total = tasks.length;
+  const open = tasks.filter(t => t.progress < 100).length;
+  const overdue = tasks.filter(t => t.due_date && new Date(t.due_date) < new Date() && t.progress < 100).length;
+  const avgPct = total ? Math.round(tasks.reduce((s, t) => s + (t.progress || 0), 0) / total) : 0;
+
+  document.getElementById('stat-total').textContent = total;
+  document.getElementById('stat-open').textContent = open;
+  document.getElementById('stat-overdue').textContent = overdue;
+  document.getElementById('stat-pct').textContent = avgPct + '%';
+}
+
+// ═══════════════════════════════════════════════════════
+// DRAG & DROP
+// ═══════════════════════════════════════════════════════
+
+let dragTaskId = null, dragFromColId = null;
+
+function dragStart(e) {
+  dragTaskId = e.currentTarget.dataset.taskId;
+  dragFromColId = state.tasks.find(t => t.id === dragTaskId)?.column_id;
+  e.currentTarget.classList.add('is-dragging');
+  e.dataTransfer.effectAllowed = 'move';
+}
+
+function dragEnd(e) {
+  e.currentTarget.classList.remove('is-dragging');
+  document.querySelectorAll('.col-body').forEach(b => b.classList.remove('drag-over-col'));
+  document.querySelectorAll('.drop-zone').forEach(dz => dz.classList.remove('active'));
+}
+
+function dragOver(e, colId) {
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'move';
+  const body = document.getElementById('colbody-' + colId);
+  body && body.classList.add('drag-over-col');
+  const dz = document.getElementById('dz-' + colId);
+  dz && dz.classList.add('active');
+}
+
+function dragLeave(e, colId) {
+  const body = document.getElementById('colbody-' + colId);
+  if (!body?.contains(e.relatedTarget)) {
+    body?.classList.remove('drag-over-col');
+    document.getElementById('dz-' + colId)?.classList.remove('active');
+  }
+}
+
+async function drop(e, toColId) {
+  e.preventDefault();
+  if (!dragTaskId || dragTaskId === undefined) return;
+  const body = document.getElementById('colbody-' + toColId);
+  body?.classList.remove('drag-over-col');
+  document.getElementById('dz-' + toColId)?.classList.remove('active');
+
+  if (dragFromColId === toColId) return;
+
+  await moveTaskToColumn(dragTaskId, toColId);
+}
+
+// ═══════════════════════════════════════════════════════
+// FILTER
+// ═══════════════════════════════════════════════════════
+
+const FILTER_CYCLE = ['all', 'high', 'med', 'low'];
+let filterIdx = 0;
+
+function cycleFilter() {
+  filterIdx = (filterIdx + 1) % FILTER_CYCLE.length;
+  state.filterPrio = FILTER_CYCLE[filterIdx];
+  const labels = { all: 'All', high: 'High', med: 'Med', low: 'Low' };
+  document.getElementById('filter-label').textContent = labels[state.filterPrio];
+  renderBoard();
+}
+
+function filterCards() {
+  state.searchQuery = document.getElementById('search-input').value;
+  renderBoard();
+}
+
+// ═══════════════════════════════════════════════════════
+// DETAIL PANEL & SUBTASKS
+// ═══════════════════════════════════════════════════════
+
+async function openPanel(taskId) {
+  const task = state.tasks.find(t => t.id === taskId);
+  if (!task) return;
+  state.selectedTask = task;
+
+  document.getElementById('detail-panel').classList.remove('hidden');
+  document.getElementById('panel-eyebrow-text').textContent = `TASK · ${task.id.slice(-6).toUpperCase()}`;
+  document.getElementById('panel-title').textContent = task.title;
+
+  renderColumnSelect();
+  renderPanelBody(task);
+
+  // Load comments
+  try {
+    const comments = await api.getComments(taskId);
+    renderComments(comments);
+  } catch { /* ignore */ }
+
+  // Highlight card
+  document.querySelectorAll('.task-card').forEach(c => c.style.borderColor = '');
+  const card = document.getElementById('card-' + taskId);
+  if (card) card.style.borderColor = 'var(--ink-strong)';
+}
+
+function renderColumnSelect() {
+  const wrap = document.getElementById('panel-column-select');
+  if (!state.selectedTask) return;
+  wrap.innerHTML = state.columns.map(c => `
+    <span class="status-pill${c.id === state.selectedTask.column_id ? ' active' : ''}"
+          onclick="moveTaskToColumn('${state.selectedTask.id}','${c.id}')">${esc(c.name)}</span>
+  `).join('');
+}
+
+function renderPanelBody(task) {
+  const isOverdue = task.due_date && new Date(task.due_date) < new Date() && task.progress < 100;
+  const prioClass = task.priority === 'high' ? 'prio-high' : task.priority === 'med' ? 'prio-med' : 'prio-low';
+
+  const dbSubtasks = state.tasks.filter(st => st.parent_task_id === task.id);
+  const subtasksHtml = `
+    <div class="panel-section-label">Checklist</div>
+    <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:16px;" id="subtask-list-${task.id}">
+      ${dbSubtasks.map((st) => `
+        <div style="display:flex;align-items:center;gap:8px;font-size:12.5px;">
+          <input type="checkbox" style="accent-color:var(--ink-strong);cursor:pointer;width:14px;height:14px;" 
+                 ${st.progress === 100 ? 'checked' : ''} 
+                 onchange="toggleSubtask('${st.id}', this.checked)">
+          <span style="flex:1;${st.progress === 100 ? 'text-decoration:line-through;color:var(--fg-subtle)' : 'color:var(--ink)'}">${esc(st.title)}</span>
+          <button class="btn-ghost" style="padding:2px;color:var(--danger-fg)" onclick="deleteSubtask('${st.id}')">
+            <i class="ph ph-x"></i>
+          </button>
+        </div>
+      `).join('')}
+      <div style="display:flex;gap:6px;margin-top:4px;">
+        <input type="text" id="new-subtask-input" class="field-input" placeholder="Add a checklist item..." style="padding:4px 8px;font-size:12px;" onkeydown="if(event.key==='Enter') addSubtask('${task.id}')">
+        <button class="btn-secondary" style="padding:4px 8px;" onclick="addSubtask('${task.id}')">Add</button>
+      </div>
+    </div>
+  `;
+
+  document.getElementById('panel-body').innerHTML = `
+    <div>
+      ${task.description ? `<p style="font-size:13px;color:var(--ink);line-height:1.6;">${esc(task.description)}</p>` : '<p style="font-size:12.5px;color:var(--fg-subtle);font-style:italic;">No description.</p>'}
+    </div>
+    <div>
+      <div class="panel-section-label">Details</div>
+      <div style="display:flex;flex-direction:column;gap:8px;">
+        <div class="meta-row"><i class="ph ph-flag"></i><span class="meta-key">Priority</span><span class="card-prio ${prioClass}" style="padding:2px 8px;">${task.priority || 'med'}</span></div>
+        ${task.assignee ? `<div class="meta-row"><i class="ph ph-user"></i><span class="meta-key">Assignee</span><div class="card-avatar" style="width:24px;height:24px;font-size:9px;">${esc(task.assignee.slice(0,3).toUpperCase())}</div><span class="meta-val">${esc(task.assignee.toUpperCase())}</span></div>` : ''}
+        ${task.due_date ? `<div class="meta-row"><i class="ph ph-calendar-blank"></i><span class="meta-key">Due</span><span class="meta-val${isOverdue ? '" style="color:var(--danger-fg)' : ''}">${formatDate(task.due_date)}${isOverdue ? ' · OVERDUE' : ''}</span></div>` : ''}
+        <div class="meta-row"><i class="ph ph-chart-bar"></i><span class="meta-key">Progress</span>
+          <div style="flex:1;">
+            <input type="range" min="0" max="100" value="${task.progress || 0}" 
+              style="width:100%;accent-color:var(--ink-strong);"
+              oninput="updateProgressPanel(this.value,'${task.id}')">
+          </div>
+          <span style="font-family:var(--font-mono);font-size:10px;color:var(--fg-muted);min-width:32px;text-align:right;">${task.progress || 0}%</span>
+        </div>
+      </div>
+    </div>
+    <div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+        <div class="panel-section-label" style="margin-bottom:0;">Actions</div>
+      </div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;">
+        <button class="btn-secondary" style="font-size:11px;" onclick="editTask('${task.id}')"><i class="ph ph-pencil"></i> Edit</button>
+        <button class="btn-secondary" style="font-size:11px;color:var(--danger-fg);border-color:var(--danger);" onclick="deleteTask('${task.id}')"><i class="ph ph-trash"></i> Delete</button>
+      </div>
+    </div>
+    ${subtasksHtml}
+    <div>
+      <div class="panel-section-label">Notes</div>
+      <div id="comments-list" style="display:flex;flex-direction:column;"></div>
+    </div>
+  `;
+}
+
+let progressTimer = null;
+function updateProgressPanel(val, taskId) {
+  // update display
+  const row = document.querySelector(`[oninput*="${taskId}"]`);
+  if (row) { const span = row.closest('.meta-row')?.querySelector('span:last-child'); if (span) span.textContent = val + '%'; }
+  clearTimeout(progressTimer);
+  progressTimer = setTimeout(async () => {
+    try {
+      await api.updateTask(taskId, { progress: parseInt(val) });
+      const task = state.tasks.find(t => t.id === taskId);
+      if (task) task.progress = parseInt(val);
+      renderBoard();
+      updateStats();
+    } catch (e) { toast('Update failed', 'error'); }
+  }, 600);
+}
+
+
+async function addSubtask(parentId) {
+    const input = document.getElementById('new-subtask-input');
+    const title = input.value.trim();
+    if (!title) return;
+    
+    const parentTask = state.tasks.find(t => t.id === parentId);
+    if (!parentTask) return;
+    
+    input.disabled = true;
+    try {
+        const newTask = await api.createTask({
+            project_id: parentTask.project_id,
+            column_id: parentTask.column_id,
+            parent_task_id: parentId,
+            title: title,
+            priority: 'med',
+            progress: 0,
+            position: 999
+        });
+        state.tasks.push(newTask);
+        refreshCurrentView();
+        openPanel(parentId);
+    } catch(e) {
+        toast('Failed to create subtask', 'error');
+    }
+    input.disabled = false;
+}
+
+async function toggleSubtask(subtaskId, isCompleted) {
+    const st = state.tasks.find(t => t.id === subtaskId);
+    if (!st) return;
+    
+    const newProgress = isCompleted ? 100 : 0;
+    st.progress = newProgress;
+    refreshCurrentView();
+    if (state.selectedTask && state.selectedTask.id === st.parent_task_id) {
+        openPanel(st.parent_task_id); // refresh panel
+    }
+    
+    try {
+        await api.updateTask(subtaskId, { progress: newProgress });
+    } catch(e) {
+        toast('Failed to update subtask', 'error');
+    }
+}
+
+async function deleteSubtask(subtaskId) {
+    if(!confirm('Delete this subtask?')) return;
+    const st = state.tasks.find(t => t.id === subtaskId);
+    if (!st) return;
+    
+    try {
+        await api.deleteTask(subtaskId);
+        state.tasks = state.tasks.filter(t => t.id !== subtaskId);
+        refreshCurrentView();
+        if (state.selectedTask && state.selectedTask.id === st.parent_task_id) {
+            openPanel(st.parent_task_id);
+        }
+    } catch(e) {
+        toast('Failed to delete subtask', 'error');
+    }
+}
+async function saveTaskUpdates(task) {
+  try {
+    await api.updateTask(task.id, { subtasks: task.subtasks, progress: task.progress });
+    renderPanelBody(task); 
+    renderBoard(); 
+    updateStats();
+  } catch(e) {
+    toast('Failed to update checklist', 'error');
+  }
+}
+
+function renderComments(comments) {
+  const list = document.getElementById('comments-list');
+  if (!list) return;
+  if (!comments.length) {
+    list.innerHTML = '<div style="font-size:12px;color:var(--fg-subtle);font-style:italic;">No notes yet.</div>';
+    return;
+  }
+  list.innerHTML = comments.map(c => `
+    <div class="comment-item">
+      <div class="card-avatar" style="width:24px;height:24px;font-size:8px;flex-shrink:0;">${esc((c.author||'?').slice(0,3).toUpperCase())}</div>
+      <div class="comment-body">
+        <div><span class="comment-who">${esc(c.author||'?')}</span><span class="comment-when">${timeAgo(c.created_at)}</span></div>
+        <div class="comment-text">${esc(c.body)}</div>
+      </div>
+    </div>
+  `).join('');
+}
+
+async function postComment() {
+  const input = document.getElementById('comment-input');
+  const body = input.value.trim();
+  if (!body || !state.selectedTask) return;
+  try {
+    const comment = await api.addComment({ task_id: state.selectedTask.id, author: USER_INITIALS, body });
+    input.value = '';
+    const list = document.getElementById('comments-list');
+    const noMsg = list?.querySelector('div[style*="italic"]');
+    if (noMsg) noMsg.remove();
+    list?.insertAdjacentHTML('beforeend', `
+      <div class="comment-item">
+        <div class="card-avatar" style="width:24px;height:24px;font-size:8px;flex-shrink:0;">${esc(USER_INITIALS)}</div>
+        <div class="comment-body">
+          <div><span class="comment-who">${esc(USER_INITIALS)}</span><span class="comment-when">just now</span></div>
+          <div class="comment-text">${esc(body)}</div>
+        </div>
+      </div>
+    `);
+    list?.scrollTo(0, list.scrollHeight);
+  } catch (e) { toast('Failed to post note: ' + e.message, 'error'); }
+}
+
+function handleCommentKey(e) {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); postComment(); }
+}
+
+async function moveTaskToColumn(taskId, colId) {
+  if (state.selectedTask?.column_id === colId) return;
+  
+  const fromCol = state.columns.find(c => c.id === state.tasks.find(t => t.id === taskId)?.column_id)?.name || 'Unknown';
+  const toCol = state.columns.find(c => c.id === colId)?.name || 'Unknown';
+  
+  try {
+    await api.updateTask(taskId, { column_id: colId });
+    
+    // Create an automatic system log in the comments
+    await api.addComment({ 
+      task_id: taskId, 
+      author: '⚙️', // System indicator
+      body: `Moved from ${fromCol} → ${toCol}` 
+    });
+
+    const task = state.tasks.find(t => t.id === taskId);
+    if (task) task.column_id = colId;
+    if (state.selectedTask?.id === taskId) state.selectedTask.column_id = colId;
+    
+    // Refresh the panel notes to show the log if the panel is open for this task
+    if (state.selectedTask?.id === taskId) {
+        api.getComments(taskId).then(comments => renderComments(comments));
+    }
+    
+    renderBoard();
+    renderColumnSelect();
+    toast('Moved to ' + toCol, 'success');
+  } catch (e) { toast('Move failed: ' + e.message, 'error'); }
+}
+
+function closePanel() {
+  state.selectedTask = null;
+  document.getElementById('detail-panel').classList.add('hidden');
+  document.querySelectorAll('.task-card').forEach(c => c.style.borderColor = '');
+}
+
+// ═══════════════════════════════════════════════════════
+// TASK CRUD
+// ═══════════════════════════════════════════════════════
+
+function showNewTaskModal(preColId) {
+  if (!state.currentProject) { toast('Select a project first', 'error'); return; }
+  state.editingTaskId = null;
+  document.getElementById('task-modal-eyebrow').textContent = 'NEW TASK';
+  document.getElementById('task-modal-title').textContent = 'Add Task';
+  document.getElementById('task-title-input').value = '';
+  document.getElementById('task-desc-input').value = '';
+  document.getElementById('task-prio-select').value = 'med';
+  document.getElementById('task-assignee-input').value = '';
+  document.getElementById('task-due-input').value = '';
+  document.getElementById('task-progress-input').value = 0;
+  document.getElementById('task-progress-lbl').textContent = '0%';
+
+  // Fill column select
+  const sel = document.getElementById('task-column-select');
+  sel.innerHTML = state.columns.map(c => `<option value="${c.id}" ${c.id === preColId ? 'selected' : ''}>${esc(c.name)}</option>`).join('');
+
+  document.getElementById('task-modal').style.display = '';
+  setTimeout(() => document.getElementById('task-title-input').focus(), 50);
+}
+
+function editTask(taskId) {
+  const task = state.tasks.find(t => t.id === taskId);
+  if (!task) return;
+  state.editingTaskId = taskId;
+  document.getElementById('task-modal-eyebrow').textContent = 'EDIT TASK';
+  document.getElementById('task-modal-title').textContent = 'Edit Task';
+  document.getElementById('task-title-input').value = task.title;
+  document.getElementById('task-desc-input').value = task.description || '';
+  document.getElementById('task-prio-select').value = task.priority || 'med';
+  document.getElementById('task-assignee-input').value = task.assignee || '';
+  document.getElementById('task-due-input').value = task.due_date || '';
+  document.getElementById('task-progress-input').value = task.progress || 0;
+  document.getElementById('task-progress-lbl').textContent = (task.progress || 0) + '%';
+
+  const sel = document.getElementById('task-column-select');
+  sel.innerHTML = state.columns.map(c => `<option value="${c.id}" ${c.id === task.column_id ? 'selected' : ''}>${esc(c.name)}</option>`).join('');
+
+  document.getElementById('task-modal').style.display = '';
+}
+
+async function saveTask() {
+  const title = document.getElementById('task-title-input').value.trim();
+  if (!title) { toast('Task title required', 'error'); return; }
+
+  const data = {
+    project_id: state.currentProject.id,
+    column_id: document.getElementById('task-column-select').value,
+    title,
+    description: document.getElementById('task-desc-input').value.trim() || null,
+    priority: document.getElementById('task-prio-select').value,
+    assignee: document.getElementById('task-assignee-input').value.trim().toUpperCase() || null,
+    due_date: document.getElementById('task-due-input').value || null,
+    progress: parseInt(document.getElementById('task-progress-input').value),
+    position: state.tasks.filter(t => t.column_id === document.getElementById('task-column-select').value).length
+  };
+
+  const btn = document.getElementById('task-save-btn');
+  btn.disabled = true;
+  btn.innerHTML = '<div class="spinner"></div> Saving…';
+
+  try {
+    if (state.editingTaskId) {
+      await api.updateTask(state.editingTaskId, data);
+      const idx = state.tasks.findIndex(t => t.id === state.editingTaskId);
+      if (idx >= 0) Object.assign(state.tasks[idx], data);
+      if (state.selectedTask?.id === state.editingTaskId) {
+        Object.assign(state.selectedTask, data);
+        renderPanelBody(state.selectedTask);
+        renderColumnSelect();
+      }
+      toast('Task updated', 'success');
+    } else {
+      const task = await api.createTask(data);
+      state.tasks.push(task);
+      toast('Task created', 'success');
+    }
+    closeTaskModal();
+    refreshCurrentView();
+    updateStats();
+    renderSidebarProjects();
+    renderProjectsGrid();
+  } catch (e) {
+    toast('Save failed: ' + e.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="ph-bold ph-check"></i> Save Task';
+  }
+}
+
+async function deleteTask(taskId) {
+  if (!confirm('Delete this task?')) return;
+  try {
+    await api.deleteTask(taskId);
+    state.tasks = state.tasks.filter(t => t.id !== taskId);
+    closePanel();
+    refreshCurrentView();
+    updateStats();
+    renderSidebarProjects();
+    toast('Task deleted');
+  } catch (e) { toast('Delete failed: ' + e.message, 'error'); }
+}
+
+function closeTaskModal() { document.getElementById('task-modal').style.display = 'none'; }
+
+// ═══════════════════════════════════════════════════════
+// PROJECT CRUD
+// ═══════════════════════════════════════════════════════
+
+function showNewProjectModal() { document.getElementById('project-modal').style.display = ''; }
+function closeProjectModal() { document.getElementById('project-modal').style.display = 'none'; }
+
+async function saveProject() {
+  const name = document.getElementById('proj-name-input').value.trim();
+  if (!name) { toast('Project name required', 'error'); return; }
+
+  const data = {
+    name,
+    description: document.getElementById('proj-desc-input').value.trim() || null,
+    color: document.getElementById('proj-color-input').value,
+    icon: document.getElementById('proj-icon-input').value.trim() || '📋'
+  };
+
+  const btn = document.getElementById('proj-save-btn');
+  btn.disabled = true;
+  btn.innerHTML = '<div class="spinner"></div>';
+
+  try {
+    const project = await api.createProject(data);
+    state.projects.push(project);
+
+    // Create default columns
+    const colsRaw = document.getElementById('proj-cols-input').value;
+    const colNames = colsRaw.split(',').map(s => s.trim()).filter(Boolean);
+    for (let i = 0; i < colNames.length; i++) {
+      const col = await api.createColumn({ project_id: project.id, name: colNames[i], position: i });
+      if (state.currentProject?.id === project.id) state.columns.push(col);
+    }
+
+    document.getElementById('nav-project-count').textContent = state.projects.length;
+    closeProjectModal();
+    renderSidebarProjects();
+    renderProjectsGrid();
+    await selectProject(project.id);
+    showView('board');
+    toast('Project created', 'success');
+  } catch (e) {
+    toast('Create failed: ' + e.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="ph-bold ph-check"></i> Create Project';
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+// COLUMN MANAGEMENT
+// ═══════════════════════════════════════════════════════
+
+function showManageColumns() {
+  if (!state.currentProject) return;
+  renderColsList();
+  document.getElementById('cols-modal').style.display = '';
+}
+function closeColsModal() { document.getElementById('cols-modal').style.display = 'none'; }
+
+function renderColsList() {
+  document.getElementById('cols-list').innerHTML = state.columns.map(c => `
+    <div style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--bg-canvas);border:1px solid var(--border);border-radius:var(--r-sm);">
+      <i class="ph ph-dots-six-vertical" style="color:var(--fg-subtle);font-size:16px;cursor:grab;"></i>
+      <span style="flex:1;font-size:13px;">${esc(c.name)}</span>
+      <span style="font-family:var(--font-mono);font-size:9px;color:var(--fg-subtle);">${state.tasks.filter(t => t.column_id === c.id).length} tasks</span>
+      <button class="btn-ghost" style="padding:3px 6px;color:var(--danger-fg);" onclick="deleteColumn('${c.id}')"><i class="ph-bold ph-trash" style="font-size:12px;"></i></button>
+    </div>
+  `).join('');
+}
+
+async function addColumn() {
+  const name = document.getElementById('new-col-name').value.trim();
+  if (!name || !state.currentProject) return;
+  try {
+    const col = await api.createColumn({ project_id: state.currentProject.id, name, position: state.columns.length });
+    state.columns.push(col);
+    document.getElementById('new-col-name').value = '';
+    renderColsList();
+    renderBoard();
+    toast('Column added', 'success');
+  } catch (e) { toast('Failed: ' + e.message, 'error'); }
+}
+
+async function deleteColumn(colId) {
+  const taskCount = state.tasks.filter(t => t.column_id === colId).length;
+  if (taskCount > 0 && !confirm(`Delete column and its ${taskCount} task(s)?`)) return;
+  try {
+    await api.deleteColumn(colId);
+    state.columns = state.columns.filter(c => c.id !== colId);
+    state.tasks = state.tasks.filter(t => t.column_id !== colId);
+    renderColsList();
+    refreshCurrentView();
+    updateStats();
+    toast('Column deleted');
+  } catch (e) { toast('Failed: ' + e.message, 'error'); }
+}
+
+// ═══════════════════════════════════════════════════════
+// VIEWS
+// ═══════════════════════════════════════════════════════
+
+function showView(view) {
+  document.getElementById('board-view').style.display = view === 'board' ? 'flex' : 'none';
+  document.getElementById('projects-view').style.display = view === 'projects' ? 'block' : 'none';
+  document.getElementById('nav-board').classList.toggle('active', view === 'board');
+  document.getElementById('nav-projects').classList.toggle('active', view === 'projects');
+  if (view === 'projects') renderProjectsGrid();
+}
+
+// ═══════════════════════════════════════════════════════
+// UTILITIES
+// ═══════════════════════════════════════════════════════
+
+function esc(str) {
+  return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function formatDate(d) {
+  if (!d) return '';
+  const date = new Date(d + 'T12:00:00');
+  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+
+function timeAgo(iso) {
+  const diff = Date.now() - new Date(iso).getTime();
+  const m = Math.floor(diff / 60000);
+  if (m < 1) return 'just now';
+  if (m < 60) return m + 'm ago';
+  const h = Math.floor(m / 60);
+  if (h < 24) return h + 'h ago';
+  return Math.floor(h / 24) + 'd ago';
+}
+
+function toast(msg, type = '') {
+  const container = document.getElementById('toast-container');
+  const t = document.createElement('div');
+  t.className = 'toast' + (type ? ' ' + type : '');
+  t.innerHTML = `<i class="ph-bold ph-${type === 'error' ? 'warning' : type === 'success' ? 'check' : 'info'}" style="font-size:14px;"></i> ${esc(msg)}`;
+  container.appendChild(t);
+  setTimeout(() => { t.style.animation = 'toastOut 0.2s ease-out forwards'; setTimeout(() => t.remove(), 200); }, 2500);
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Excel to CSV Extractor</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/@phosphor-icons/web"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+  <link rel="stylesheet" href="theme.css">
+  <style>
+    body {
+      background: #111;
+      color: #eee;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+    }
+    input, button {
+      margin: 10px;
+      padding: 10px;
+      font-size: 16px;
+    }
+    .log {
+      margin-top: 20px;
+      max-height: 200px;
+      overflow-y: auto;
+      width: 80%;
+      background: #222;
+      padding: 10px;
+      border-radius: 8px;
+    }
+  </style>
+</head>
+<body>
+
+<h2>Excel → CSV Extractor</h2>
+
+<input type="file" id="fileInput" accept=".xlsx,.xls" />
+<button onclick="processFile()">Extract Sheets</button>
+
+<div class="log" id="log"></div>
+
+<script>
+function log(message) {
+  const logDiv = document.getElementById("log");
+  logDiv.innerHTML += message + "<br>";
+}
+
+function downloadCSV(csv, filename) {
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(blob);
+  link.download = filename;
+  link.click();
+}
+
+function processFile() {
+  const fileInput = document.getElementById("fileInput");
+  const file = fileInput.files[0];
+
+  if (!file) {
+    alert("Please select an Excel file.");
+    return;
+  }
+
+  const reader = new FileReader();
+
+  reader.onload = function(e) {
+    const data = new Uint8Array(e.target.result);
+    const workbook = XLSX.read(data, { type: "array" });
+
+    log("Sheets found: " + workbook.SheetNames.join(", "));
+
+    workbook.SheetNames.forEach(sheetName => {
+      const worksheet = workbook.Sheets[sheetName];
+
+      // Convert to CSV
+      const csv = XLSX.utils.sheet_to_csv(worksheet);
+
+      // Clean filename
+      const safeName = sheetName.replace(/[^a-z0-9]/gi, "_");
+
+      downloadCSV(csv, safeName + ".csv");
+
+      log("Saved: " + safeName + ".csv");
+    });
+
+    log("Done.");
+  };
+
+  reader.readAsArrayBuffer(file);
+}
+</script>
+
+</body>
+</html>

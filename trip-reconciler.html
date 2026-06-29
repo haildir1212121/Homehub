@@ -1,0 +1,657 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Trip Reconciler</title>
+  
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Inter+Tight:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            bg: "#ffffff",
+            surface: "#f9fafb",
+            surfaceAlt: "#f3f4f6",
+            text: "#1a1a1a",
+            muted: "#6b7280",
+            accent: "#000000",
+            green: "#16a34a",
+            red: "#dc2626",
+            yellow: "#ca8a04",
+            blue: "#2563eb",
+            bordercol: "#e5e7eb",
+          },
+          fontFamily: {
+            sans: ['"Inter"', 'sans-serif'],
+            display: ['"Inter Tight"', 'sans-serif'],
+            mono: ['"JetBrains Mono"', 'monospace'],
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    body { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
+
+    .custom-scroll::-webkit-scrollbar { width: 6px; height: 6px; }
+    .custom-scroll::-webkit-scrollbar-track { background: transparent; }
+    .custom-scroll::-webkit-scrollbar-thumb { background: #e5e7eb; border-radius: 4px; }
+    .custom-scroll:hover::-webkit-scrollbar-thumb { background: #9ca3af; }
+
+    .slide-in { animation: slideIn 0.15s ease-out; }
+    @keyframes slideIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    .fade-in { animation: fadeIn 0.2s ease-out forwards; }
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+    .app-card { transition: all 0.1s ease-in-out; }
+    .app-card:active { transform: scale(0.99); background-color: #f9fafb; }
+
+    .tag {
+      display: inline-flex; align-items: center; gap: 4px;
+      padding: 2px 8px; border-radius: 9999px;
+      font-size: 10px; font-weight: 600;
+      text-transform: uppercase; letter-spacing: 0.05em;
+    }
+
+    .data-row { transition: background 0.1s; }
+    .data-row:hover { background: #f9fafb; }
+
+    .nav-tab { border-radius: 6px; transition: all 0.1s; }
+    .nav-tab.active { background-color: #000; color: #fff; }
+
+    input:focus { box-shadow: 0 0 0 2px rgba(0,0,0,0.06); }
+  </style>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <link rel="stylesheet" href="theme.css">
+</head>
+<body class="min-h-screen bg-bg text-text font-sans antialiased p-0 m-0">
+
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useMemo, useCallback, useEffect, useRef } = React;
+
+    // ── Supabase Client ──────────────────────────────────────
+    // Auth + data both on mdutrtmdjodabggirntb
+    const SUPABASE_URL = "https://mdutrtmdjodabggirntb.supabase.co";
+    const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kdXRydG1kam9kYWJnZ2lybnRiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ5MDk3MzQsImV4cCI6MjA5MDQ4NTczNH0.GlrbsjnkBSwhnguBQUCb418NxvRO02PhXhBJZ69xTi4";
+    const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    const SESSION_TIMEOUT_MS = 15 * 60 * 1000;
+
+    // ── Audit Logger (HIPAA §164.312(b)) ─────────────────────
+    async function logAudit(user, action, resource, recordCount, filters) {
+      if (!user) return;
+      try {
+        await sb.from("phi_audit_log").insert({
+          user_id: user.id,
+          user_email: user.email,
+          action,
+          resource,
+          record_count: recordCount || null,
+          filters: filters || {},
+          user_agent: navigator.userAgent,
+        });
+      } catch (e) {
+        console.error("Audit log failed:", e);
+      }
+    }
+
+    // ── CSV Parser ───────────────────────────────────────────
+    function parseCSV(text) {
+      const lines = [];
+      let current = "";
+      let inQuotes = false;
+      for (let i = 0; i < text.length; i++) {
+        const ch = text[i];
+        if (ch === '"') {
+          if (inQuotes && text[i + 1] === '"') { current += '"'; i++; }
+          else { inQuotes = !inQuotes; }
+        } else if ((ch === "," || ch === "\n" || ch === "\r") && !inQuotes) {
+          if (ch === "\r" && text[i + 1] === "\n") i++;
+          if (ch === ",") {
+            lines.length === 0 ? (lines.push([current]), current = "") : (lines[lines.length - 1].push(current), current = "");
+          } else {
+            lines.length === 0 ? lines.push([current]) : lines[lines.length - 1].push(current);
+            current = ""; lines.push([]);
+          }
+        } else {
+          current += ch;
+        }
+      }
+      if (current || (lines.length && lines[lines.length - 1])) {
+        if (lines.length === 0) lines.push([current]);
+        else lines[lines.length - 1].push(current);
+      }
+      return lines.filter(r => r.length > 1 || (r.length === 1 && r[0].trim()));
+    }
+
+    function StatusBadge({ status }) {
+      const config = {
+        matched: { label: "MATCHED", color: "text-green", bg: "bg-green/10", border: "border-green/25" },
+        webhook_only: { label: "SUPABASE ONLY", color: "text-yellow", bg: "bg-yellow/10", border: "border-yellow/25" },
+        csv_only: { label: "MISSING", color: "text-red", bg: "bg-red/10", border: "border-red/25" },
+      };
+      const c = config[status];
+      return <span className={`tag border ${c.color} ${c.bg} ${c.border}`}>{c.label}</span>;
+    }
+
+    // ── Login Screen ─────────────────────────────────────────
+    function LoginScreen({ onLogin }) {
+      const [email, setEmail] = useState("");
+      const [password, setPassword] = useState("");
+      const [error, setError] = useState(null);
+      const [loading, setLoading] = useState(false);
+
+      const handleLogin = async (e) => {
+        e.preventDefault();
+        setLoading(true);
+        setError(null);
+        const { data, error: authError } = await sb.auth.signInWithPassword({ email, password });
+        if (authError) {
+          setError(authError.message);
+          setLoading(false);
+        } else {
+          await logAudit(data.user, "login", "auth");
+          onLogin(data.user);
+        }
+      };
+
+      return (
+        <div className="min-h-screen flex items-center justify-center bg-surface p-6">
+          <div className="w-full max-w-sm bg-white border border-bordercol rounded-xl p-8 slide-in">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="bg-black rounded-lg w-9 h-9 flex items-center justify-center text-lg font-bold text-white font-display">⇄</div>
+              <div>
+                <h1 className="text-xl font-bold tracking-tight text-text font-display" style={{letterSpacing: '-0.02em'}}>Trip Reconciler</h1>
+                <p className="text-[10px] text-muted font-mono uppercase tracking-[0.08em]">Protected Health Information</p>
+              </div>
+            </div>
+
+            <div className="bg-yellow/5 border border-yellow/20 rounded-lg p-3 mb-5">
+              <p className="text-[11px] text-yellow font-medium leading-relaxed">
+                This system contains Protected Health Information (PHI) governed by HIPAA. 
+                Unauthorized access is prohibited and all activity is logged.
+              </p>
+            </div>
+
+            <div>
+              <div className="mb-3">
+                <label className="block text-[10px] font-semibold tracking-[0.08em] text-muted mb-1.5 uppercase font-mono">Email</label>
+                <input type="email" required value={email} onChange={e => setEmail(e.target.value)} placeholder="you@directmedical.com" className="w-full px-3 py-2.5 bg-surface border border-bordercol rounded-md text-text text-[13px] font-mono outline-none focus:border-black/30" />
+              </div>
+              <div className="mb-5">
+                <label className="block text-[10px] font-semibold tracking-[0.08em] text-muted mb-1.5 uppercase font-mono">Password</label>
+                <input type="password" required value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••" className="w-full px-3 py-2.5 bg-surface border border-bordercol rounded-md text-text text-[13px] font-mono outline-none focus:border-black/30" onKeyDown={e => e.key === 'Enter' && handleLogin(e)} />
+              </div>
+              {error && <div className="mb-4 p-2.5 bg-red/5 border border-red/20 rounded-md text-red text-xs font-mono">{error}</div>}
+              <button onClick={handleLogin} disabled={loading || !email || !password} className="w-full py-2.5 bg-black rounded-md text-white text-[12px] font-semibold tracking-[0.06em] font-mono uppercase hover:bg-gray-800 disabled:opacity-30 cursor-pointer">
+                {loading ? "Authenticating..." : "Sign In"}
+              </button>
+            </div>
+
+            <p className="mt-5 text-center text-[10px] text-muted font-mono">
+              Session auto-locks after 15 minutes of inactivity
+            </p>
+          </div>
+        </div>
+      );
+    }
+
+    // ── Main App ─────────────────────────────────────────────
+    function App() {
+      const [user, setUser] = useState(null);
+      const [authChecked, setAuthChecked] = useState(false);
+      const lastActivity = useRef(Date.now());
+
+      useEffect(() => {
+        sb.auth.getSession().then(({ data: { session } }) => {
+          if (session?.user) setUser(session.user);
+          setAuthChecked(true);
+        });
+
+        const { data: { subscription } } = sb.auth.onAuthStateChange((event, session) => {
+          if (event === "SIGNED_OUT") setUser(null);
+          if (event === "SIGNED_IN" && session?.user) setUser(session.user);
+        });
+
+        return () => subscription.unsubscribe();
+      }, []);
+
+      // Session timeout — 15 min inactivity
+      useEffect(() => {
+        if (!user) return;
+
+        const resetTimer = () => { lastActivity.current = Date.now(); };
+
+        const checkTimeout = () => {
+          if (Date.now() - lastActivity.current > SESSION_TIMEOUT_MS) {
+            logAudit(user, "session_timeout", "auth");
+            sb.auth.signOut();
+            setUser(null);
+          }
+        };
+
+        const events = ["mousedown", "keydown", "scroll", "touchstart"];
+        events.forEach(e => window.addEventListener(e, resetTimer));
+        const interval = setInterval(checkTimeout, 30000);
+
+        return () => {
+          events.forEach(e => window.removeEventListener(e, resetTimer));
+          clearInterval(interval);
+        };
+      }, [user]);
+
+      if (!authChecked) {
+        return <div className="min-h-screen flex items-center justify-center text-muted font-mono text-sm">Checking session...</div>;
+      }
+
+      if (!user) return <LoginScreen onLogin={setUser} />;
+
+      return <Dashboard user={user} />;
+    }
+
+    // ── Dashboard ────────────────────────────────────────────
+    function Dashboard({ user }) {
+      const [webhookTrips, setWebhookTrips] = useState([]);
+      const [csvTrips, setCsvTrips] = useState([]);
+      const [loading, setLoading] = useState(false);
+      const [error, setError] = useState(null);
+      const [filter, setFilter] = useState("all");
+      const [searchTerm, setSearchTerm] = useState("");
+      const [dateFilter, setDateFilter] = useState("");
+      const [siteFilter, setSiteFilter] = useState("");
+      const [tab, setTab] = useState("compare");
+      const [connected, setConnected] = useState(false);
+      const [sites, setSites] = useState([]);
+
+      // Fetch distinct site_ref values for the dropdown
+      useEffect(() => {
+        (async () => {
+          try {
+            const { data } = await sb.from("trips").select("site_ref");
+            if (data) {
+              const unique = [...new Set(data.map(r => r.site_ref).filter(Boolean))].sort();
+              setSites(unique);
+            }
+          } catch (e) { console.error("Failed to fetch sites:", e); }
+        })();
+      }, []);
+
+      const fetchTrips = useCallback(async () => {
+        setLoading(true);
+        setError(null);
+        try {
+          let query = sb.from("trips").select("*").order("date", { ascending: false }).limit(2000);
+          if (dateFilter) query = query.eq("date", dateFilter);
+          if (siteFilter) query = query.eq("site_ref", siteFilter);
+
+          const { data, error: fetchErr } = await query;
+          if (fetchErr) throw new Error(fetchErr.message);
+
+          setWebhookTrips(data || []);
+          setConnected(true);
+          await logAudit(user, "view_trips", "trips", data?.length || 0, { date_filter: dateFilter || "all", site_filter: siteFilter || "all" });
+        } catch (err) {
+          setError(err.message);
+          setConnected(false);
+        } finally {
+          setLoading(false);
+        }
+      }, [dateFilter, siteFilter, user]);
+
+      useEffect(() => { fetchTrips(); }, [siteFilter, dateFilter]);
+
+      const handleCSVUpload = useCallback((e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+          const text = ev.target.result;
+          const rows = parseCSV(text);
+          if (rows.length < 2) return;
+          const headers = rows[0].map(h => h.trim());
+          console.log("CSV headers:", headers);
+          const trips = rows.slice(1).map(row => {
+            const obj = {};
+            headers.forEach((h, i) => { obj[h] = (row[i] || "").trim(); });
+            return obj;
+          }).filter(obj => {
+            // Require at least a name or trip ID to count as a real row
+            const hasName = (obj.Name || "").trim();
+            const hasId = (obj.TripID || obj.tripid || obj.trip_id || "").trim();
+            return hasName || hasId;
+          });
+          setCsvTrips(trips);
+          logAudit(user, "upload_csv", "csv_file", trips.length, { filename: file.name });
+        };
+        reader.readAsText(file);
+      }, [user]);
+
+      const handleLogout = async () => {
+        await logAudit(user, "logout", "auth");
+        await sb.auth.signOut();
+      };
+
+      // Normalize a name for matching: lowercase, collapse whitespace
+      const normName = (n) => (n || "").toLowerCase().replace(/\s+/g, " ").trim();
+
+      // Normalize date to YYYY-MM-DD from either "2026-05-14" or "5/14/2026"
+      const normDate = (d) => {
+        if (!d) return "";
+        const s = d.trim();
+        if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+        const parts = s.split("/");
+        if (parts.length === 3) {
+          const [m, day, y] = parts;
+          return `${y}-${m.padStart(2,"0")}-${day.padStart(2,"0")}`;
+        }
+        return s;
+      };
+
+      // Normalize time to HH:MM from "14:55" or "7:15"
+      const normTime = (t) => {
+        if (!t) return "";
+        const s = t.trim();
+        const p = s.split(":");
+        if (p.length >= 2) return p[0].padStart(2,"0") + ":" + p[1].padStart(2,"0");
+        return s;
+      };
+
+      // Build a composite match key from name + date + time
+      const makeKey = (name, date, time) => `${normName(name)}|${normDate(date)}|${normTime(time)}`;
+
+      const comparison = useMemo(() => {
+        // Supabase trips are already filtered by site_ref in the query.
+        // CSV has no site column — all CSV rows participate.
+
+        // Index Supabase trips by composite key
+        const webhookByKey = new Map();
+        webhookTrips.forEach(t => {
+          const key = makeKey(t.passenger, t.date, t.time);
+          if (key !== "||") webhookByKey.set(key, t);
+        });
+
+        // Index CSV trips by composite key
+        const csvByKey = new Map();
+        csvTrips.forEach(t => {
+          const csvName = t.Name || "";
+          const csvDate = t.Date || "";
+          const csvTime = t.Pu || "";
+          const key = makeKey(csvName, csvDate, csvTime);
+          if (key !== "||") csvByKey.set(key, t);
+        });
+
+        const allKeys = new Set([...webhookByKey.keys(), ...csvByKey.keys()]);
+        const results = [];
+
+        allKeys.forEach(key => {
+          const w = webhookByKey.get(key);
+          const c = csvByKey.get(key);
+          let status = "matched";
+          if (w && !c) status = "webhook_only";
+          if (!w && c) status = "csv_only";
+
+          const tripId = w?.id || c?.TripID || c?.tripid || c?.trip_id || "—";
+
+          results.push({
+            id: key, status, trip_id: String(tripId),
+            client_name: w?.passenger || c?.Name || "—",
+            job_date: w?.date || c?.Date || "—",
+            job_time: w?.time || c?.Pu || "—",
+            city: w ? (w.pickup || "—") : (c?.Origin || c?.["City (Orig)"] || "—"),
+            address: w ? (w.dropoff || "—") : (c?.Destination || c?.["City (Dest)"] || "—"),
+            vehicle: w?.vehicle_ref || c?.["Vehicle Type"] || "—",
+            driver: w?.driver_name || "—",
+            site: w?.site_ref || "—",
+          });
+        });
+
+        return results;
+      }, [webhookTrips, csvTrips]);
+
+      const stats = useMemo(() => {
+        const matched = comparison.filter(c => c.status === "matched").length;
+        const webhookOnly = comparison.filter(c => c.status === "webhook_only").length;
+        const csvOnly = comparison.filter(c => c.status === "csv_only").length;
+        return { total: comparison.length, matched, webhookOnly, csvOnly };
+      }, [comparison]);
+
+      // Auto-switch to "Missing" view when CSV is uploaded and there are missing trips
+      useEffect(() => {
+        if (csvTrips.length > 0 && stats.csvOnly > 0) {
+          setFilter("csv_only");
+          setTab("compare");
+        }
+      }, [csvTrips.length, stats.csvOnly]);
+
+      const filteredTrips = useMemo(() => {
+        let items = comparison;
+        if (filter !== "all") items = items.filter(t => t.status === filter);
+        if (searchTerm) {
+          const term = searchTerm.toLowerCase();
+          items = items.filter(t =>
+            t.trip_id.toLowerCase().includes(term) ||
+            t.client_name.toLowerCase().includes(term) ||
+            t.city.toLowerCase().includes(term) ||
+            t.address.toLowerCase().includes(term)
+          );
+        }
+        return items;
+      }, [comparison, filter, searchTerm]);
+
+      const handleExport = () => {
+        const missing = comparison.filter(c => c.status === "csv_only");
+        const csv = ["Trip ID,Client,Date,Time,City,Address,Vehicle"]
+          .concat(missing.map(t => `${t.trip_id},"${t.client_name}",${t.job_date},${t.job_time},${t.city},"${t.address}",${t.vehicle}`))
+          .join("\n");
+        const url = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `missing-trips-${new Date().toISOString().split("T")[0]}.csv`;
+        a.click();
+        URL.revokeObjectURL(url);
+        logAudit(user, "export_csv", "trips", missing.length, { export_type: "csv_only_missing" });
+      };
+
+      return (
+        <>
+          <header className="bg-white border-b border-bordercol px-8 py-4">
+            <div className="max-w-[1400px] mx-auto flex items-center justify-between">
+              <div className="flex items-center gap-3.5">
+                <div className="bg-black rounded-lg w-9 h-9 flex items-center justify-center text-lg font-bold text-white font-display">⇄</div>
+                <div>
+                  <h1 className="m-0 text-[22px] font-bold tracking-tight text-text font-display" style={{letterSpacing: '-0.02em'}}>Trip Reconciler</h1>
+                  <p className="m-0 text-xs text-muted font-mono">Webhook data vs OT.csv — find the gaps</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-4">
+                <span className="text-[10px] text-muted font-mono">{user.email}</span>
+                <button onClick={handleLogout} className="px-3 py-1.5 bg-surface border border-bordercol rounded-md text-[11px] font-semibold tracking-[0.06em] font-mono text-muted hover:text-text hover:bg-surfaceAlt cursor-pointer transition-colors">
+                  Sign Out
+                </button>
+              </div>
+            </div>
+          </header>
+
+          <div className="bg-yellow/5 border-b border-yellow/15 px-8 py-2">
+            <div className="max-w-[1400px] mx-auto">
+              <span className="text-[10px] font-semibold text-yellow font-mono tracking-[0.06em] uppercase">
+                PHI — Protected Health Information — All access logged per HIPAA §164.312(b)
+              </span>
+            </div>
+          </div>
+
+          <main className="max-w-[1400px] mx-auto px-6 py-6 pb-16">
+
+            <section className="bg-white border border-bordercol rounded-xl p-5 mb-5 slide-in">
+              <div className="flex items-center justify-between flex-wrap gap-3">
+                <div className="flex items-center gap-2">
+                  <span className={`w-2 h-2 rounded-full ${connected ? 'bg-green' : loading ? 'bg-yellow animate-pulse' : 'bg-red'}`}></span>
+                  <span className="text-[10px] font-semibold tracking-[0.08em] text-muted uppercase font-mono">
+                    {loading ? "Fetching..." : connected ? "Connected" : "Not Connected"}
+                  </span>
+                </div>
+                <div className="flex items-end gap-3">
+                  <div className="min-w-[100px]">
+                    <label className="block text-[10px] font-semibold tracking-[0.08em] text-muted mb-1.5 uppercase font-mono">Site</label>
+                    <select value={siteFilter} onChange={e => setSiteFilter(e.target.value)} className="w-full px-3 py-2.5 bg-surface border border-bordercol rounded-md text-text text-[13px] font-mono outline-none focus:border-black/30 cursor-pointer appearance-none">
+                      <option value="">All Sites</option>
+                      {sites.map(s => <option key={s} value={s}>{s.toUpperCase()}</option>)}
+                    </select>
+                  </div>
+                  <div className="min-w-[100px]">
+                    <label className="block text-[10px] font-semibold tracking-[0.08em] text-muted mb-1.5 uppercase font-mono">Date Filter</label>
+                    <input type="date" value={dateFilter} onChange={e => setDateFilter(e.target.value)} className="w-full px-3 py-2.5 bg-surface border border-bordercol rounded-md text-text text-[13px] font-mono outline-none focus:border-black/30" />
+                  </div>
+                  <button onClick={fetchTrips} disabled={loading} className="px-5 py-2.5 bg-black rounded-md text-white text-[11px] font-semibold tracking-[0.06em] font-mono uppercase hover:bg-gray-800 cursor-pointer h-[42px] disabled:opacity-30 disabled:cursor-not-allowed">
+                    {loading ? "Loading..." : "↻ Refresh"}
+                  </button>
+                </div>
+              </div>
+              {error && <div className="mt-3 p-2.5 bg-red/5 border border-red/20 rounded-md text-red text-xs font-mono">{error}</div>}
+            </section>
+
+            <section className="bg-white border border-bordercol rounded-xl p-5 mb-6 flex items-center gap-4 flex-wrap slide-in" style={{animationDelay: '0.05s'}}>
+              <div className="flex-1 min-w-[200px]">
+                <label className="block text-[10px] font-semibold tracking-[0.08em] text-muted mb-1.5 uppercase font-mono">Upload OT.csv for comparison</label>
+                <input type="file" accept=".csv" onChange={handleCSVUpload} className="w-full p-2 bg-surface border border-bordercol rounded-md text-text text-[13px] font-mono outline-none cursor-pointer file:mr-4 file:py-1 file:px-3 file:rounded file:border file:border-bordercol file:text-[11px] file:font-mono file:bg-white file:text-text file:cursor-pointer hover:file:bg-surface" />
+              </div>
+              <div className="flex gap-3 items-center">
+                {siteFilter && <span className="tag border border-blue/25 text-blue bg-blue/10">{siteFilter.toUpperCase()}</span>}
+                <div className="text-center px-4">
+                  <div className="text-xl font-bold text-text font-mono">{webhookTrips.length}</div>
+                  <div className="text-[9px] text-muted font-semibold tracking-[0.08em] uppercase font-mono mt-1">Supabase</div>
+                </div>
+                <div className="w-px bg-bordercol self-stretch"></div>
+                <div className="text-center px-4">
+                  <div className="text-xl font-bold text-text font-mono">{csvTrips.length}</div>
+                  <div className="text-[9px] text-muted font-semibold tracking-[0.08em] uppercase font-mono mt-1">CSV</div>
+                </div>
+              </div>
+            </section>
+
+            {comparison.length > 0 && (
+              <div className="flex flex-wrap gap-3 mb-5">
+                {[
+                  { id: "all", label: "Total Unique", icon: "◉", val: stats.total, colorClass: "text-text", borderClass: filter === "all" ? "bg-black text-white border-black" : "bg-white border-bordercol hover:bg-surface" },
+                  { id: "csv_only", label: "Missing", icon: "✗", val: stats.csvOnly, colorClass: "text-red", borderClass: filter === "csv_only" ? "bg-red/10 border-red/40" : "bg-white border-bordercol hover:bg-surface" },
+                  { id: "matched", label: "Matched", icon: "✓", val: stats.matched, colorClass: "text-green", borderClass: filter === "matched" ? "bg-green/10 border-green/40" : "bg-white border-bordercol hover:bg-surface" },
+                  { id: "webhook_only", label: "Supabase Only", icon: "⚠", val: stats.webhookOnly, colorClass: "text-yellow", borderClass: filter === "webhook_only" ? "bg-yellow/10 border-yellow/40" : "bg-white border-bordercol hover:bg-surface" }
+                ].map(s => (
+                  <button key={s.id} onClick={() => setFilter(s.id)} className={`app-card flex-1 min-w-[140px] border rounded-lg px-4 py-4 cursor-pointer text-left transition-all ${s.borderClass}`}>
+                    <div className={`text-[10px] font-semibold tracking-[0.08em] font-mono mb-1.5 uppercase ${filter === s.id && s.id === "all" ? "text-white/70" : "text-muted"}`}>{s.icon} {s.label}</div>
+                    <div className={`text-2xl font-bold font-mono ${filter === s.id && s.id === "all" ? "text-white" : s.colorClass}`}>{s.val}</div>
+                  </button>
+                ))}
+              </div>
+            )}
+
+            <div className="flex gap-1.5 mb-4">
+              {[
+                { id: "compare", label: `Comparison (${filteredTrips.length})` },
+                { id: "webhook", label: `Supabase (${webhookTrips.length})` },
+                { id: "csv", label: `OT.csv (${csvTrips.length})` }
+              ].map(t => (
+                <button key={t.id} onClick={() => setTab(t.id)} className={`nav-tab px-4 py-2 border text-[11px] font-semibold tracking-[0.06em] font-mono uppercase cursor-pointer transition-all ${tab === t.id ? 'active border-black' : 'bg-white border-bordercol text-muted hover:bg-surface hover:text-text'}`}>
+                  {t.label}
+                </button>
+              ))}
+            </div>
+
+            <div className="mb-3.5">
+              <input type="text" placeholder="Search by ID, passenger name, pickup..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="w-full max-w-[400px] px-3 py-2.5 bg-surface border border-bordercol rounded-md text-text text-[13px] font-mono outline-none focus:border-black/30" />
+            </div>
+
+            <div className="overflow-x-auto rounded-lg border border-bordercol custom-scroll">
+              <table className="w-full border-collapse text-xs font-mono">
+                <thead>
+                  <tr>
+                    {tab === "compare" && ["Status", "ID", "Passenger", "Date", "Time", "Pickup", "Dropoff", "Vehicle", "Driver", "Site"].map(h => <th key={h} className="px-3 py-2.5 text-left text-[10px] font-semibold tracking-[0.08em] uppercase text-muted bg-surface border-b border-bordercol whitespace-nowrap">{h}</th>)}
+                    {tab === "webhook" && ["ID", "Passenger", "Date", "Time", "Pickup", "Dropoff", "Driver", "Vehicle", "Status", "Site"].map(h => <th key={h} className="px-3 py-2.5 text-left text-[10px] font-semibold tracking-[0.08em] uppercase text-muted bg-surface border-b border-bordercol whitespace-nowrap">{h}</th>)}
+                    {tab === "csv" && ["Trip ID", "Client", "Date", "Time", "Origin", "Destination", "Vehicle Type"].map(h => <th key={h} className="px-3 py-2.5 text-left text-[10px] font-semibold tracking-[0.08em] uppercase text-muted bg-surface border-b border-bordercol whitespace-nowrap">{h}</th>)}
+                  </tr>
+                </thead>
+                <tbody>
+                  {tab === "compare" && filteredTrips.map((t, i) => (
+                    <tr key={i} className="data-row border-b border-bordercol">
+                      <td className="px-3 py-2 whitespace-nowrap"><StatusBadge status={t.status} /></td>
+                      <td className="px-3 py-2 whitespace-nowrap text-text font-medium">{t.trip_id}</td>
+                      <td className="px-3 py-2 text-text max-w-[180px] truncate">{t.client_name}</td>
+                      <td className="px-3 py-2 whitespace-nowrap text-text">{t.job_date}</td>
+                      <td className="px-3 py-2 whitespace-nowrap text-text">{t.job_time}</td>
+                      <td className="px-3 py-2 whitespace-nowrap text-text">{t.city}</td>
+                      <td className="px-3 py-2 text-text max-w-[200px] truncate">{t.address}</td>
+                      <td className="px-3 py-2 whitespace-nowrap text-text">{t.vehicle}</td>
+                      <td className="px-3 py-2 whitespace-nowrap text-text">{t.driver}</td>
+                      <td className="px-3 py-2 whitespace-nowrap text-text uppercase">{t.site}</td>
+                    </tr>
+                  ))}
+
+                  {tab === "webhook" && webhookTrips.filter(t => !searchTerm || String(t.id||"").includes(searchTerm) || (t.passenger||"").toLowerCase().includes(searchTerm.toLowerCase())).map((t, i) => (
+                    <tr key={i} className="data-row border-b border-bordercol">
+                      <td className="px-3 py-2 whitespace-nowrap text-text font-medium">{t.id || "—"}</td>
+                      <td className="px-3 py-2 text-text max-w-[180px] truncate">{t.passenger || "—"}</td>
+                      <td className="px-3 py-2 whitespace-nowrap text-text">{t.date || "—"}</td>
+                      <td className="px-3 py-2 whitespace-nowrap text-text">{t.time || "—"}</td>
+                      <td className="px-3 py-2 whitespace-nowrap text-text">{t.pickup || "—"}</td>
+                      <td className="px-3 py-2 text-text max-w-[200px] truncate">{t.dropoff || "—"}</td>
+                      <td className="px-3 py-2 whitespace-nowrap text-text">{t.driver_name || "—"}</td>
+                      <td className="px-3 py-2 whitespace-nowrap text-text">{t.vehicle_ref || "—"}</td>
+                      <td className="px-3 py-2 whitespace-nowrap text-text">{t.status || "—"}</td>
+                      <td className="px-3 py-2 whitespace-nowrap text-text uppercase">{t.site_ref || "—"}</td>
+                    </tr>
+                  ))}
+
+                  {tab === "csv" && csvTrips.filter(t => !searchTerm || (t.TripID||"").includes(searchTerm) || (t.Name||"").toLowerCase().includes(searchTerm.toLowerCase())).map((t, i) => (
+                    <tr key={i} className="data-row border-b border-bordercol">
+                      <td className="px-3 py-2 whitespace-nowrap text-text font-medium">{t.TripID || t.tripid || t.trip_id || "—"}</td>
+                      <td className="px-3 py-2 text-text max-w-[180px] truncate">{t.Name || "—"}</td>
+                      <td className="px-3 py-2 whitespace-nowrap text-text">{t.Date || "—"}</td>
+                      <td className="px-3 py-2 whitespace-nowrap text-text">{t.Pu || "—"}</td>
+                      <td className="px-3 py-2 text-text max-w-[200px] truncate">{t.Origin || t["City (Orig)"] || "—"}</td>
+                      <td className="px-3 py-2 text-text max-w-[200px] truncate">{t.Destination || t["City (Dest)"] || "—"}</td>
+                      <td className="px-3 py-2 whitespace-nowrap text-text">{t["Vehicle Type"] || "—"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {((tab === "compare" && filteredTrips.length === 0) || (tab === "webhook" && webhookTrips.length === 0) || (tab === "csv" && csvTrips.length === 0)) && (
+                <div className="text-center p-10 text-muted text-xs font-mono">No data to display.</div>
+              )}
+            </div>
+
+            {stats.csvOnly > 0 && (tab === "compare" || filter === "csv_only") && (
+              <div className="mt-4 flex items-center gap-3">
+                <button onClick={handleExport} className="px-5 py-2.5 bg-red/5 border border-red/20 rounded-md text-red text-[11px] font-semibold tracking-[0.06em] font-mono uppercase hover:bg-red/10 cursor-pointer">
+                  ↓ Export {stats.csvOnly} Missing Trips
+                </button>
+                <span className="text-[10px] text-muted font-mono">PHI export will be logged</span>
+              </div>
+            )}
+
+          </main>
+        </>
+      );
+    }
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App />);
+  </script>
+</body>
+</html>

@@ -1,0 +1,18 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "ot-tools",
+  "compatibility_date": "2026-04-06",
+  "observability": {
+    "enabled": true
+  },
+  "assets": {
+    "directory": "."
+  },
+  "compatibility_flags": [
+    "nodejs_compat"
+  ],
+ "routes": [
+    { "pattern": "ot-tools.com", "custom_domain": true },
+    { "pattern": "www.ot-tools.com", "custom_domain": true }
+  ]
+}

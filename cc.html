@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Card Processing - Lane Transportation</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <link rel="stylesheet" href="theme.css">
+    <style>
+        /* Slide-enter: horizontal fade (distinct from the vertical slide-in in theme.css) */
+        .slide-enter { animation: slideEnter 0.3s ease-out forwards; }
+        @keyframes slideEnter {
+            from { opacity: 0; transform: translateX(10px); }
+            to   { opacity: 1; transform: translateX(0); }
+        }
+    </style>
+</head>
+<body class="antialiased text-black bg-gray-50 flex h-screen overflow-hidden">
+
+    <aside class="flex flex-col flex-shrink-0 w-20 md:w-60 bg-white border-r border-gray-200 z-30 relative shadow-[1px_0_0_rgba(0,0,0,0.05)]">
+        <a href="/index.html" class="flex items-center justify-center md:justify-start md:px-6 h-16 border-b border-gray-200 flex-shrink-0 bg-gray-50 w-full hover:bg-gray-100 transition-colors">
+            <i class="ph-fill ph-squares-four text-3xl text-black"></i>
+            <span class="ml-2 text-lg font-bold hidden md:block tracking-tight">Hub</span>
+        </a>
+
+        <div class="flex-1 overflow-y-auto custom-scroll p-4 space-y-1">
+            <div class="text-xs font-bold text-gray-400 uppercase tracking-wide mb-3 hidden md:block">Navigation</div>
+            
+            <a href="/index.html" class="w-full flex items-center justify-center md:justify-start p-2 rounded-md bg-white text-gray-600 hover:bg-gray-100 hover:text-black transition-colors">
+                <i class="ph-bold ph-arrow-left text-lg"></i>
+                <span class="ml-3 text-sm font-bold hidden md:block">Back to Dashboard</span>
+            </a>
+            
+            <a href="/directory.html" class="w-full flex items-center justify-center md:justify-start p-2 rounded-md bg-white text-gray-600 hover:bg-gray-100 hover:text-black transition-colors">
+                <i class="ph-bold ph-address-book text-lg"></i>
+                <span class="ml-3 text-sm font-bold hidden md:block">Directory</span>
+            </a>
+        </div>
+    </aside>
+
+    <main class="flex-1 flex flex-col h-full overflow-hidden bg-[#faf9f8] relative z-10">
+        <div class="flex-1 overflow-y-auto p-4 sm:p-8 flex flex-col items-center justify-center custom-scroll">
+
+            <div class="w-full max-w-3xl bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden flex flex-col min-h-[500px]">
+                
+                <div class="bg-black text-white px-8 py-6 relative">
+                    <div class="flex justify-between items-center mb-2">
+                        <div class="flex items-center gap-3">
+                            <i class="ph-bold ph-credit-card text-2xl"></i>
+                            <h1 class="text-lg font-bold tracking-tight">iCabbi CC Processing SOP</h1>
+                        </div>
+                        <span id="progressText" class="text-xs font-bold text-gray-400 uppercase tracking-wider">Step 1 of 5</span>
+                    </div>
+                    <div class="w-full bg-gray-800 h-1.5 rounded-full overflow-hidden mt-4">
+                        <div id="progressBar" class="bg-white h-full transition-all duration-300" style="width: 20%;"></div>
+                    </div>
+                </div>
+
+                <div id="slideContainer" class="flex-1 p-8 relative">
+                    
+                    <div class="slide hidden slide-enter" data-index="0">
+                        <div class="flex items-center mb-6">
+                            <div class="bg-black text-white font-bold h-10 w-10 rounded-full flex items-center justify-center mr-4">1</div>
+                            <h2 class="text-2xl font-bold text-black">Start of Shift: Signing In</h2>
+                        </div>
+                        <p class="text-gray-600 mb-6">At the beginning of each shift, you must sign into both the iCabbi Driver App and the iCabbi Companion App.</p>
+                        
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div class="bg-gray-50 rounded border border-gray-200 p-5">
+                                <h4 class="font-bold text-black flex items-center gap-2 mb-3"><i class="ph-fill ph-device-mobile text-blue-500 text-xl"></i> iCabbi Driver App</h4>
+                                <ul class="text-sm text-gray-600 space-y-2 list-disc pl-5">
+                                    <li>Tap the Driver App icon.</li>
+                                    <li>Enter your Driver # and PIN # (both are the same as your Driver #).</li>
+                                </ul>
+                                <div class="mt-4 p-3 bg-orange-50 border border-orange-200 rounded text-xs text-orange-800 leading-relaxed">
+                                    <span class="font-bold">Important:</span> No leading zeros. For example, if your Driver # is 969, your PIN is also 969.
+                                </div>
+                            </div>
+                            <div class="bg-gray-50 rounded border border-gray-200 p-5">
+                                <h4 class="font-bold text-black flex items-center gap-2 mb-3"><i class="ph-fill ph-device-mobile text-purple-500 text-xl"></i> Companion App</h4>
+                                <ul class="text-sm text-gray-600 space-y-2 list-disc pl-5">
+                                    <li>Open the Companion App.</li>
+                                    <li>Enter your Driver # (same as the Driver App).</li>
+                                    <li>Once logged in, the Companion App is ready for processing.</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="slide hidden" data-index="1">
+                        <div class="flex items-center mb-6">
+                            <div class="bg-black text-white font-bold h-10 w-10 rounded-full flex items-center justify-center mr-4">2</div>
+                            <h2 class="text-2xl font-bold text-black">During Shift: Initiating Payment</h2>
+                        </div>
+                        
+                        <div class="space-y-6">
+                            <div class="flex items-start bg-gray-50 p-5 rounded border border-gray-200">
+                                <div class="h-8 w-8 rounded-full bg-blue-100 text-blue-700 font-bold flex items-center justify-center mr-4 shrink-0">A</div>
+                                <div>
+                                    <h4 class="font-bold text-black text-lg mb-1">Complete the Trip</h4>
+                                    <p class="text-gray-600 leading-relaxed">Turn the meter off after completing the trip. In the Driver App, select <b class="text-black">"CASH"</b> when prompted for payment (there will only be CASH and ACCOUNT options). This clears the trip from the Driver App.</p>
+                                </div>
+                            </div>
+                            <div class="flex items-start bg-gray-50 p-5 rounded border border-gray-200">
+                                <div class="h-8 w-8 rounded-full bg-purple-100 text-purple-700 font-bold flex items-center justify-center mr-4 shrink-0">B</div>
+                                <div>
+                                    <h4 class="font-bold text-black text-lg mb-1">Process via Companion App</h4>
+                                    <p class="text-gray-600 leading-relaxed">In the Driver App, click the floating <b class="text-black">"Pay by Card"</b> icon to automatically open the Companion App. Completed trips will be listed in chronological order (the trip you just completed will be at the top). Select the trip, then click <b class="text-black">"Pay by Card."</b></p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="slide hidden" data-index="2">
+                        <div class="flex items-center mb-6">
+                            <div class="bg-black text-white font-bold h-10 w-10 rounded-full flex items-center justify-center mr-4">3</div>
+                            <h2 class="text-2xl font-bold text-black">Running the Transaction</h2>
+                        </div>
+                        <p class="text-gray-600 mb-6 text-lg">The credit card machine is now engaged. Confirm with the customer if they would like to add a tip:</p>
+
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                            <div class="p-5 border border-green-200 bg-green-50 rounded-lg">
+                                <h4 class="font-bold text-green-800 flex items-center gap-2 mb-3 text-lg"><i class="ph-fill ph-check-circle text-green-600 text-xl"></i> Yes, Tip</h4>
+                                <p class="text-sm text-gray-700 mb-3">Press the <span class="bg-green-500 text-white px-2 py-1 rounded font-bold">Green</span> button on the terminal.</p>
+                                <ul class="text-sm text-gray-600 list-disc pl-5 space-y-1">
+                                    <li>Choose a default percentage (15%, 20%, 25%).</li>
+                                    <li>Confirm the tip amount with the customer.</li>
+                                </ul>
+                            </div>
+                            <div class="p-5 border border-red-200 bg-red-50 rounded-lg">
+                                <h4 class="font-bold text-red-800 flex items-center gap-2 mb-3 text-lg"><i class="ph-fill ph-x-circle text-red-600 text-xl"></i> No Tip</h4>
+                                <p class="text-sm text-gray-700">Press the <span class="bg-red-500 text-white px-2 py-1 rounded font-bold">Red X</span> button on the terminal to completely bypass the tip screen.</p>
+                            </div>
+                        </div>
+                        
+                        <div class="bg-gray-100 p-4 rounded-lg text-gray-800 border border-gray-300 flex items-center">
+                            <i class="ph-fill ph-contactless-payment text-3xl text-black mr-4 flex-shrink-0"></i>
+                            <div class="leading-relaxed">
+                                Once the tip (or no tip) is confirmed, the machine will prompt for payment. The customer should <b class="text-black">tap their card</b> on the reader to complete the transaction.
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="slide hidden" data-index="3">
+                        <div class="flex items-center mb-6">
+                            <div class="bg-black text-white font-bold h-10 w-10 rounded-full flex items-center justify-center mr-4">4</div>
+                            <h2 class="text-2xl font-bold text-black">Confirming Successful Payment</h2>
+                        </div>
+                        <div class="bg-green-50 border border-green-200 rounded-lg p-8 text-center mt-8">
+                            <div class="mx-auto w-16 h-16 bg-green-100 text-green-600 rounded-full flex items-center justify-center mb-6">
+                                <i class="ph-bold ph-check text-3xl"></i>
+                            </div>
+                            <p class="text-lg text-gray-700 leading-relaxed max-w-lg mx-auto">
+                                Check the iCabbi Companion App. The completed trip will now be <b class="text-green-700">highlighted in green</b> and will read <b class="text-black">"Paid by Card"</b>, indicating the payment has been successfully processed. 
+                                <br><br>
+                                That's it—all done!
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="slide hidden" data-index="4">
+                        <div class="flex items-center mb-6">
+                            <div class="bg-black text-white font-bold h-10 w-10 rounded-full flex items-center justify-center mr-4">5</div>
+                            <h2 class="text-2xl font-bold text-black">End of Shift: Signing Out</h2>
+                        </div>
+                        <div class="bg-gray-50 border border-gray-200 rounded-lg p-8 mt-8">
+                            <div class="flex items-start">
+                                <i class="ph-fill ph-sign-out text-3xl text-black mr-4 mt-1"></i>
+                                <div>
+                                    <p class="text-lg text-gray-700 leading-relaxed mb-4">
+                                        At the end of your shift, verify that all trips have been processed and payments completed.
+                                    </p>
+                                    <div class="bg-white p-4 border border-gray-300 rounded shadow-sm text-black font-bold">
+                                        You must sign out of <span class="underline decoration-2 underline-offset-2">both</span> the iCabbi Driver App and the Companion App.
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+
+                <div class="bg-gray-50 border-t border-gray-200 px-8 py-5 flex items-center justify-between mt-auto">
+                    <button id="prevBtn" class="flex items-center text-gray-500 hover:text-black font-bold text-sm transition-colors disabled:opacity-30 disabled:cursor-not-allowed">
+                        <i class="ph-bold ph-arrow-left mr-2"></i> Previous
+                    </button>
+                    
+                    <div id="slideDots" class="flex items-center gap-2">
+                        </div>
+
+                    <button id="nextBtn" class="bg-black hover:bg-gray-800 text-white flex items-center px-5 py-2.5 rounded-md font-bold text-sm transition-colors shadow-sm">
+                        Next Step <i class="ph-bold ph-arrow-right ml-2"></i>
+                    </button>
+                </div>
+
+            </div>
+        </div>
+    </main>
+</div>
+
+<script>
+    document.addEventListener("DOMContentLoaded", () => {
+        let currentSlide = 0;
+        const slides = document.querySelectorAll('.slide');
+        const totalSlides = slides.length;
+        
+        const prevBtn = document.getElementById('prevBtn');
+        const nextBtn = document.getElementById('nextBtn');
+        const progressText = document.getElementById('progressText');
+        const progressBar = document.getElementById('progressBar');
+        const slideDots = document.getElementById('slideDots');
+
+        // Generate Dots
+        for(let i = 0; i < totalSlides; i++) {
+            const dot = document.createElement('div');
+            dot.className = `h-2 w-2 rounded-full transition-colors duration-300 ${i === 0 ? 'bg-black' : 'bg-gray-300'}`;
+            slideDots.appendChild(dot);
+        }
+
+        function updateUI() {
+            // Update Slides
+            slides.forEach((slide, index) => {
+                if (index === currentSlide) {
+                    slide.classList.remove('hidden');
+                    // Retrigger animation
+                    slide.classList.remove('slide-enter');
+                    void slide.offsetWidth; 
+                    slide.classList.add('slide-enter');
+                } else {
+                    slide.classList.add('hidden');
+                }
+            });
+
+            // Update Dots
+            Array.from(slideDots.children).forEach((dot, index) => {
+                dot.className = `h-2 w-2 rounded-full transition-colors duration-300 ${index === currentSlide ? 'bg-black' : 'bg-gray-300'}`;
+            });
+
+            // Update Progress Bar & Text
+            progressText.textContent = `Step ${currentSlide + 1} of ${totalSlides}`;
+            progressBar.style.width = `${((currentSlide + 1) / totalSlides) * 100}%`;
+
+            // Update Buttons
+            prevBtn.disabled = currentSlide === 0;
+            
+            if (currentSlide === totalSlides - 1) {
+                nextBtn.innerHTML = 'Finish <i class="ph-bold ph-check-circle ml-2 text-lg"></i>';
+                nextBtn.classList.replace('bg-black', 'bg-green-600');
+                nextBtn.classList.replace('hover:bg-gray-800', 'hover:bg-green-700');
+            } else {
+                nextBtn.innerHTML = 'Next Step <i class="ph-bold ph-arrow-right ml-2"></i>';
+                nextBtn.classList.replace('bg-green-600', 'bg-black');
+                nextBtn.classList.replace('hover:bg-green-700', 'hover:bg-gray-800');
+            }
+        }
+
+        prevBtn.addEventListener('click', () => {
+            if (currentSlide > 0) {
+                currentSlide--;
+                updateUI();
+            }
+        });
+
+        nextBtn.addEventListener('click', () => {
+            if (currentSlide < totalSlides - 1) {
+                currentSlide++;
+                updateUI();
+            } else {
+                // Return to dashboard on finish
+                window.location.href = '/index.html';
+            }
+        });
+
+        // Initialize
+        updateUI();
+    });
+</script>
+
+</body>
+</html>
