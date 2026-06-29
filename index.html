@@ -113,41 +113,45 @@
                 <i class="ph-bold ph-calendar text-[17px] opacity-75 group-hover:opacity-100"></i>
                 <span class="ml-2.5 text-[13px] font-medium hidden md:block">Schedule</span>
             </button>
-            <a href="/drivers.html" id="nav-drivers" data-tool="drivers" class="w-full flex items-center justify-center md:justify-start p-2 rounded-md hover:bg-gray-100 text-gray-700 hover:text-black transition-colors group">
+            <a href="/drivers.html" id="nav-drivers" data-tool="drivers" onclick="event.preventDefault();openTool('/drivers.html','Drivers')" class="w-full flex items-center justify-center md:justify-start p-2 rounded-md hover:bg-gray-100 text-gray-700 hover:text-black transition-colors group">
                 <i class="ph-bold ph-steering-wheel text-[17px] opacity-75 group-hover:opacity-100"></i>
                 <span class="ml-2.5 text-[13px] font-medium hidden md:block">Drivers</span>
             </a>
 
             <div id="quick-launch-section" class="hidden mt-4 pt-2">
                 <div class="mono-font text-[9px] font-bold text-gray-400 uppercase tracking-[0.14em] mb-2 px-2 hidden md:block">Tools</div>
-                
-                <a href="/sms.html" data-tool="sms" class="quick-launch-item w-full flex items-center justify-center md:justify-start p-2 rounded-md hover:bg-gray-100 text-gray-700 hover:text-black transition-colors group">
+
+                <a href="/sms.html" data-tool="sms" onclick="event.preventDefault();openTool('/sms.html','SMS Tool')" class="quick-launch-item w-full flex items-center justify-center md:justify-start p-2 rounded-md hover:bg-gray-100 text-gray-700 hover:text-black transition-colors group">
                     <i class="ph-bold ph-chat-circle-text text-[17px] opacity-75 group-hover:opacity-100"></i>
                     <span class="ml-2.5 text-[13px] font-medium hidden md:block">SMS Tool</span>
                 </a>
-                <a href="/balances.html" data-tool="balances" class="quick-launch-item w-full flex items-center justify-center md:justify-start p-2 rounded-md hover:bg-gray-100 text-gray-700 hover:text-black transition-colors group">
+                <a href="/balances.html" data-tool="balances" onclick="event.preventDefault();openTool('/balances.html','Account Balances')" class="quick-launch-item w-full flex items-center justify-center md:justify-start p-2 rounded-md hover:bg-gray-100 text-gray-700 hover:text-black transition-colors group">
                     <i class="ph-bold ph-wallet text-[17px] opacity-75 group-hover:opacity-100"></i>
                     <span class="ml-2.5 text-[13px] font-medium hidden md:block">Account Balances</span>
                 </a>
-                <a href="/zone-map.html" data-tool="zones" class="quick-launch-item w-full flex items-center justify-center md:justify-start p-2 rounded-md hover:bg-gray-100 text-gray-700 hover:text-black transition-colors group">
+                <a href="/zone-map.html" data-tool="zones" onclick="event.preventDefault();openTool('/zone-map.html','Zone Map')" class="quick-launch-item w-full flex items-center justify-center md:justify-start p-2 rounded-md hover:bg-gray-100 text-gray-700 hover:text-black transition-colors group">
                     <i class="ph-bold ph-map-trifold text-[17px] opacity-75 group-hover:opacity-100"></i>
                     <span class="ml-2.5 text-[13px] font-medium hidden md:block">Zone Map</span>
                 </a>
-                <a href="/financialdashboard" data-tool="finance" class="quick-launch-item w-full flex items-center justify-center md:justify-start p-2 rounded-md hover:bg-gray-100 text-gray-700 hover:text-black transition-colors group">
+                <a href="/financialdashboard" data-tool="finance" onclick="event.preventDefault();openTool('/financialdashboard','Financial Dash')" class="quick-launch-item w-full flex items-center justify-center md:justify-start p-2 rounded-md hover:bg-gray-100 text-gray-700 hover:text-black transition-colors group">
                     <i class="ph-bold ph-chart-line-up text-[17px] opacity-75 group-hover:opacity-100"></i>
                     <span class="ml-2.5 text-[13px] font-medium hidden md:block">Financial Dash</span>
                 </a>
-                <a href="/repair-tracker.html" data-tool="repair" class="quick-launch-item w-full flex items-center justify-center md:justify-start p-2 rounded-md hover:bg-gray-100 text-gray-700 hover:text-black transition-colors group">
+                <a href="/repair-tracker.html" data-tool="repair" onclick="event.preventDefault();openTool('/repair-tracker.html','Repair Tracker')" class="quick-launch-item w-full flex items-center justify-center md:justify-start p-2 rounded-md hover:bg-gray-100 text-gray-700 hover:text-black transition-colors group">
                     <i class="ph-bold ph-wrench text-[17px] opacity-75 group-hover:opacity-100"></i>
                     <span class="ml-2.5 text-[13px] font-medium hidden md:block">Repair Tracker</span>
                 </a>
-                              <a href="/trip-reconciler.html" data-tool="brokers" class="quick-launch-item w-full flex items-center justify-center md:justify-start p-2 rounded-md hover:bg-gray-100 text-gray-700 hover:text-black transition-colors group">
+                <a href="/trip-reconciler.html" data-tool="brokers" onclick="event.preventDefault();openTool('/trip-reconciler.html','Trip Reconciler')" class="quick-launch-item w-full flex items-center justify-center md:justify-start p-2 rounded-md hover:bg-gray-100 text-gray-700 hover:text-black transition-colors group">
                     <i class="ph-bold ph-handshake text-[17px] opacity-75 group-hover:opacity-100"></i>
                     <span class="ml-2.5 text-[13px] font-medium hidden md:block">Trip Reconciler</span>
                 </a>
-                                            <a href="/lot-map.html" data-tool="brokers" class="quick-launch-item w-full flex items-center justify-center md:justify-start p-2 rounded-md hover:bg-gray-100 text-gray-700 hover:text-black transition-colors group">
+                <a href="/lot-map.html" data-tool="brokers" onclick="event.preventDefault();openTool('/lot-map.html','Lytx Data')" class="quick-launch-item w-full flex items-center justify-center md:justify-start p-2 rounded-md hover:bg-gray-100 text-gray-700 hover:text-black transition-colors group">
                     <i class="ph-bold ph-globe text-[17px] opacity-75 group-hover:opacity-100"></i>
                     <span class="ml-2.5 text-[13px] font-medium hidden md:block">Lytx Data</span>
+                </a>
+                <a href="/kanban.html" data-tool="tech-projects" onclick="event.preventDefault();openTool('/kanban.html','Tech Projects')" class="quick-launch-item w-full flex items-center justify-center md:justify-start p-2 rounded-md hover:bg-gray-100 text-gray-700 hover:text-black transition-colors group">
+                    <i class="ph-bold ph-kanban text-[17px] opacity-75 group-hover:opacity-100"></i>
+                    <span class="ml-2.5 text-[13px] font-medium hidden md:block">Tech Projects</span>
                 </a>
             </div>
 
@@ -490,6 +494,23 @@
                 </div>
               </div>
 
+            </section>
+
+            <!-- ═══════ TOOL FRAME (embeds standalone tool pages in-page) ═══════ -->
+            <section id="tool-frame-section" class="hidden h-full flex flex-col -m-6 sm:-m-10">
+                <header class="flex items-center justify-between gap-4 px-6 sm:px-10 py-4 border-b border-gray-200 bg-white flex-shrink-0">
+                    <div class="flex items-center gap-3">
+                        <button onclick="showSection('dashboard')" class="text-gray-400 hover:text-black transition-colors flex items-center gap-1.5 mono-font text-[10px] uppercase tracking-widest">
+                            <i class="ph-bold ph-arrow-left"></i> Back
+                        </button>
+                        <span class="text-gray-300">/</span>
+                        <h1 id="tool-frame-title" class="text-[14px] font-semibold text-black tracking-tight">Tool</h1>
+                    </div>
+                    <a id="tool-frame-newtab" href="#" target="_blank" class="text-gray-400 hover:text-black transition-colors" title="Open in new tab">
+                        <i class="ph-bold ph-arrow-square-out text-lg"></i>
+                    </a>
+                </header>
+                <iframe id="tool-frame-iframe" src="" class="flex-1 w-full border-0 bg-white"></iframe>
             </section>
 
             <!-- ═══════ OWNER PORTAL ═══════ -->
@@ -959,10 +980,19 @@
     window.state = { isLoginMode: true, currentUser: null, searchQuery: '' };
 
     // ==================== NAVIGATION ====================
-    const ALL_SECTIONS = ['dashboard','trips','documents','schedule','settings','driver-hub','owner-portal'];
+    const ALL_SECTIONS = ['dashboard','trips','documents','schedule','settings','driver-hub','owner-portal','tool-frame'];
+
+    window.openTool = function(url, label) {
+        if (!url || url === '#') return;
+        if (url.startsWith('#')) { showSection(url.substring(1)); return; }
+        document.getElementById('tool-frame-title').textContent = label || 'Tool';
+        document.getElementById('tool-frame-newtab').href = url;
+        document.getElementById('tool-frame-iframe').src = url;
+        showSection('tool-frame');
+    };
 
     window.showSection = function(sectionId) {
-        const titleMap = { dashboard:'Dashboard', trips:'Trips', schedule:'Schedule', documents:'Documents', settings:'Settings', 'driver-hub':'Driver Hub', 'owner-portal':'Owner Portal' };
+        const titleMap = { dashboard:'Dashboard', trips:'Trips', schedule:'Schedule', documents:'Documents', settings:'Settings', 'driver-hub':'Driver Hub', 'owner-portal':'Owner Portal', 'tool-frame': document.getElementById('tool-frame-title')?.textContent || 'Tool' };
         document.getElementById('crumb-current').textContent = titleMap[sectionId] || sectionId;
 
         ALL_SECTIONS.forEach(s => {
@@ -1679,7 +1709,7 @@
             document.getElementById('app-count-meta').textContent = `${visibleApps.length} tools`;
 
             container.innerHTML = visibleApps.map(tool => `
-                <a href="${tool.url || '#'}" ${tool.url?.startsWith('#') ? `onclick="event.preventDefault();showSection('${tool.url.substring(1)}')"` : ''} class="app-card bg-white border-b border-r border-gray-500 p-6 flex flex-col justify-between hover:bg-gray-50 cursor-pointer group block transition-colors min-h-[188px]">
+                <a href="${tool.url || '#'}" onclick="event.preventDefault();openTool('${(tool.url||'#').replace(/'/g,"\\'")}', '${tool.name.replace(/'/g,"\\'")}')" class="app-card bg-white border-b border-r border-gray-500 p-6 flex flex-col justify-between hover:bg-gray-50 cursor-pointer group block transition-colors min-h-[188px]">
                     <div>
                         <div class="flex justify-between items-start mb-4">
                             <div class="h-9 w-9 rounded border border-gray-200 flex items-center justify-center group-hover:bg-black group-hover:border-black transition-colors duration-200">
@@ -1718,9 +1748,7 @@
             visibleApps.forEach(app => {
                 const card = document.createElement('a');
                 card.href = app.url || '#';
-                if (app.url?.startsWith('#')) {
-                    card.onclick = (e) => { e.preventDefault(); showSection(app.url.substring(1)); };
-                }
+                card.onclick = (e) => { e.preventDefault(); window.openTool(app.url, app.name); };
                 card.className = "app-card bg-white border border-gray-400 p-6 flex flex-col justify-between hover:bg-gray-50 cursor-pointer group block transition-colors min-h-[188px]";
                 card.innerHTML = `
                     <div>
@@ -2149,7 +2177,7 @@
         { id:'brokers',   label:'Trip Reconciler',          icon:'ph-handshake',          group:'Tools', url:'/trip-reconciler.html',  defaultRoles:['admin','dispatcher','jay','finance','management'] },
         { id:'incidents', label:'Feedback / Incident Log',  icon:'ph-warning-octagon',    group:'Tools', url:'#',                      defaultRoles:['admin','dispatcher','jay','management'] },
       { id: 'lytx-map',     label: 'Lytx Map and Data',                icon: 'ph-globe',  group:'Tools',       url: '/lot-map.html',                      defaultRoles: ['admin','dispatcher','jay','finance','management'] },
-   { id: 'tech-projects',    label: 'Tech Projects',    icon: 'ph-globe',     group:'Tools',   url: '/lot-map.html',                       defaultRoles: ['admin','dispatcher','jay','finance','management'] },
+   { id: 'tech-projects',    label: 'Tech Projects',    icon: 'ph-kanban',     group:'Tools',   url: '/kanban.html',                       defaultRoles: ['admin','dispatcher','jay','finance','management'] },
     ];
 
     // Returns true/false for whether the current user can access a given tool id,
